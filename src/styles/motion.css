@@ -1,0 +1,66 @@
+/* Short, functional motion; interaction never waits for an animation to finish. */
+:root {
+  --motion-fast: 140ms;
+  --motion-enter: 220ms;
+  --motion-ease: cubic-bezier(.2, .7, .3, 1);
+}
+.page-transition, .login-card, .public-hero {
+  animation: content-enter var(--motion-enter) var(--motion-ease);
+}
+.confirm-overlay { animation: overlay-enter var(--motion-fast) ease-out; }
+.confirm-dialog { animation: dialog-enter var(--motion-enter) var(--motion-ease); }
+.toast { animation: content-enter var(--motion-enter) var(--motion-ease); }
+.button, .theme-toggle, .inline-button, .public-actions a {
+  transition: transform var(--motion-fast) var(--motion-ease), box-shadow var(--motion-fast) ease-out;
+}
+.sidebar nav a { transition: box-shadow var(--motion-fast) ease-out; }
+.sidebar nav i { transition: transform var(--motion-fast) var(--motion-ease); }
+input, select, textarea { transition: border-color var(--motion-fast) ease-out; }
+.button:active:not(:disabled), .theme-toggle:active:not(:disabled), .inline-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.button-spinner {
+  display: inline-block;
+  flex-shrink: 0;
+  width: .85em;
+  height: .85em;
+  margin-right: .5em;
+  vertical-align: -.1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+@media (hover: hover) and (pointer: fine) {
+  .button:hover:not(:disabled), .theme-toggle:hover:not(:disabled), .public-actions a:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px var(--shadow-color);
+  }
+  .sidebar nav a:hover i { transform: translateX(2px); }
+}
+@keyframes content-enter {
+  from { opacity: .85; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes overlay-enter {
+  from { opacity: .8; }
+  to { opacity: 1; }
+}
+@keyframes dialog-enter {
+  from { opacity: .85; transform: translateY(6px) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .button:hover:not(:disabled), .theme-toggle:hover:not(:disabled), .public-actions a:hover,
+  .button:active:not(:disabled), .theme-toggle:active:not(:disabled), .inline-button:active:not(:disabled),
+  .sidebar nav a:hover i { transform: none; }
+}
+@media print {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .button-spinner { display: none; }
+}

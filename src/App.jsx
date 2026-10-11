@@ -110,5 +110,5 @@ export default function App() {
     ) : (
       <NotFound />
     )
-  return <AppLayout path={path}>{view}</AppLayout>
+  return <AppLayout path={path}><div key={path} className="page-transition">{view}</div></AppLayout>
 }

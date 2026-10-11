@@ -41,8 +41,8 @@ export function StatusBadge({ children }) {
 }
 export function LoadingState() {
   return (
-    <div className="loading-state">
-      <span></span>Loading workspace…
+    <div className="loading-state" role="status" aria-live="polite">
+      <span aria-hidden="true"></span>Loading workspace…
     </div>
   )
 }
@@ -51,7 +51,7 @@ export function FormError({ children }) {
   return <p className="form-error" role="alert">{children}</p>
 }
 export function AsyncButton({ loading, children, loadingLabel = 'Saving…', ...props }) {
-  return <button {...props} disabled={loading || props.disabled}>{loading ? loadingLabel : children}</button>
+  return <button {...props} aria-busy={loading || undefined} disabled={loading || props.disabled}>{loading && <span className="button-spinner" aria-hidden="true" />}{loading ? loadingLabel : children}</button>
 }
 export function ConfirmDialog({ title = 'Confirm action', message, confirmLabel = 'Confirm', tone = 'default', onCancel, onConfirm }) {
   const titleId = useId()
