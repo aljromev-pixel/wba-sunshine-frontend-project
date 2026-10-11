@@ -64,6 +64,15 @@ try{
   await publicPage.setViewportSize({width,height:900});
   assert.equal(await publicPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`Landing overflow at ${width}`);
  }
+ await publicPage.getByRole('link',{name:'Sign in',exact:true}).click();
+ await publicPage.getByRole('heading',{name:'Sign in to your workspace',exact:true}).waitFor();
+ assert.equal(await publicPage.locator('.login-card').evaluate(el=>getComputedStyle(el).animationName),'entry-right');
+ await publicPage.getByRole('link',{name:'← Back to home',exact:true}).click();
+ await publicPage.getByRole('heading',{name:'A brighter way to keep stock moving.'}).waitFor();
+ assert.equal(await publicPage.locator('.public-visual').evaluate(el=>getComputedStyle(el).animationName),'entry-right');
+ await publicPage.emulateMedia({reducedMotion:'reduce'});
+ assert.equal(await publicPage.locator('.public-visual').evaluate(el=>getComputedStyle(el).animationName),'none');
+ await publicPage.emulateMedia({reducedMotion:'no-preference'});
  await publicPage.goto('http://127.0.0.1:5197/#/sign-up');
  await publicPage.getByRole('heading',{name:'Sign in to your workspace'}).waitFor();
  assert.equal(await publicPage.getByRole('link',{name:/Create.*account|Sign up/i}).count(),0);
@@ -306,6 +315,7 @@ try{
  await motion.getByRole('button',{name:'Add product',exact:true}).hover();
  assert.equal(await motion.getByRole('button',{name:'Add product',exact:true}).evaluate(el=>getComputedStyle(el).transform),'none');
  await motion.emulateMedia({reducedMotion:'no-preference'});
+ assert.equal(await motion.getByRole('button',{name:'Collapse navigation',exact:true}).evaluate(el=>Boolean(el.closest('.brand'))),true);
  await motion.getByRole('button',{name:'Collapse navigation',exact:true}).click();
  assert.equal(await motion.getByRole('button',{name:'Expand navigation',exact:true}).getAttribute('aria-expanded'),'false');
  await motion.getByRole('link',{name:/Audit Trail/}).waitFor({state:'hidden'});

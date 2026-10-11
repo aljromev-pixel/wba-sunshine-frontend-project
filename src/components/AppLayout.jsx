@@ -68,7 +68,7 @@ export function AppLayout({ path, children }) {
           <span>
             <small>WALANGBROWNOUT APPLIANCES</small>
           </span>
-          <button className="sidebar-toggle sidebar-close is-open" onClick={close} aria-label="Close navigation">
+          <button type="button" className={`sidebar-toggle sidebar-close ${mobile ? 'is-open' : ''}`} aria-expanded={visible} aria-controls="workspace-navigation" onClick={() => { if (mobile) close(); else { setCollapsed(true); requestAnimationFrame(() => toggle.current?.focus()) } }} aria-label={mobile ? 'Close navigation' : 'Collapse navigation'}>
             <span /><span /><span />
           </button>
         </div>
@@ -105,9 +105,9 @@ export function AppLayout({ path, children }) {
       <main className="main-content" inert={mobile && open}>
         <header className="topbar">
           <div className="workspace-heading">
-            <button ref={toggle} type="button" className={`sidebar-toggle ${visible ? 'is-open' : ''}`} aria-label={mobile ? 'Open navigation' : visible ? 'Collapse navigation' : 'Expand navigation'} aria-expanded={visible} aria-controls="workspace-navigation" onClick={() => mobile ? setOpen(value => !value) : setCollapsed(value => !value)}>
+            {!visible && <button ref={toggle} type="button" className={`sidebar-toggle ${visible ? 'is-open' : ''}`} aria-label={mobile ? 'Open navigation' : visible ? 'Collapse navigation' : 'Expand navigation'} aria-expanded={visible} aria-controls="workspace-navigation" onClick={() => mobile ? setOpen(value => !value) : setCollapsed(value => !value)}>
               <span /><span /><span />
-            </button>
+            </button>}
             <div className="workspace-title">
             <p className="breadcrumb">SUNSHINE / INVENTORY WORKSPACE</p>
             <h1>{title(path)}</h1>

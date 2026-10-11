@@ -50,7 +50,41 @@ input, select, textarea { transition: border-color var(--motion-fast) ease-out; 
   from { opacity: .85; transform: translateY(6px) scale(.99); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
+/* A warm light trace connects the public entry screens without covering controls. */
+.public-page::before, .login-page::before {
+  display: block; content: ''; position: fixed; z-index: 1; top: 0; left: 0;
+  width: 100%; height: 3px; pointer-events: none; transform-origin: left;
+  background: linear-gradient(90deg, transparent, var(--accent), white, var(--accent), transparent);
+  animation: entry-light 650ms var(--motion-ease) both;
+}
+.public-header { animation: header-arrive 350ms var(--motion-ease); }
+.public-hero { animation: none; }
+.public-hero > div { animation: entry-left 450ms var(--motion-ease); }
+.public-visual { animation: entry-right 500ms 60ms var(--motion-ease) backwards; }
+.public-features article { animation: content-enter 400ms var(--motion-ease) backwards; }
+.public-features article:nth-child(2) { animation-delay: 50ms; }
+.public-features article:nth-child(3) { animation-delay: 100ms; }
+.login-brand { animation: entry-left 450ms var(--motion-ease); }
+.login-card { animation: entry-right 500ms 60ms var(--motion-ease) backwards; }
+@keyframes entry-light {
+  0% { transform: scaleX(.1); opacity: 0; }
+  35% { opacity: .85; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+@keyframes entry-left {
+  from { transform: translateX(-8px); opacity: .85; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes entry-right {
+  from { transform: translateX(8px); opacity: .85; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes header-arrive {
+  from { transform: translateY(-4px); opacity: .85; }
+  to { transform: translateY(0); opacity: 1; }
+}
 @media (prefers-reduced-motion: reduce) {
+  .public-page::before, .login-page::before { display: none; }
   *, *::before, *::after {
     animation: none !important;
     transition: none !important;
