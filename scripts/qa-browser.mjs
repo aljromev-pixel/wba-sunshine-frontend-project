@@ -12,7 +12,7 @@ const user={id:1,name:'Test Administrator',email:'qa@example.test',department:'A
 const products=[{id:1,sku:'QA-1',name:'Alpha Product',category:'Smart Home',stock:2,reorderPoint:1,capacity:null,supplier:'Supplier A',leadTime:1,unit:'units',monthlySales:1},{id:2,sku:'QA-2',name:'Beta Product',category:'Smart Home',stock:3,reorderPoint:1,capacity:10,supplier:'Supplier B',leadTime:2,unit:'units',monthlySales:2}];
 const inventory={products,batches:[],transactions:[],adjustments:[],audit:[],alerts:[]};
 async function makePage(handler,token=true){
- const page=await browser.newPage();page.setDefaultTimeout(6000);page.on('pageerror',e=>errors.push(e.message));
+ const page=await browser.newPage();await page.emulateMedia({colorScheme:'light'});page.setDefaultTimeout(6000);page.on('pageerror',e=>errors.push(e.message));
  if(token)await page.addInitScript(()=>sessionStorage.setItem('wba-auth-token','test-only-token'));
  await page.route('**/api/**',async route=>{const path=new URL(route.request().url()).pathname;const method=route.request().method();const json=(status,data)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(data)});await handler({route,path,method,json});});
  return page;
@@ -37,6 +37,27 @@ try{
  const publicPage=await makePage(({json})=>json(200,{}),false);
  await publicPage.goto('http://127.0.0.1:5197');
  await publicPage.getByRole('heading',{name:'A brighter way to keep stock moving.'}).waitFor();
+ const themeButton=publicPage.getByRole('button',{name:'Dark mode',exact:true});
+ assert.equal(await themeButton.getAttribute('aria-pressed'),'false');
+ await publicPage.emulateMedia({colorScheme:'dark'});
+ await publicPage.waitForFunction(()=>document.documentElement.dataset.theme==='dark');
+ await publicPage.emulateMedia({colorScheme:'light'});
+ await publicPage.waitForFunction(()=>document.documentElement.dataset.theme==='light');
+ await themeButton.focus();await publicPage.keyboard.press('Enter');
+ assert.equal(await themeButton.getAttribute('aria-pressed'),'true');
+ await publicPage.reload();await publicPage.getByRole('heading',{name:'A brighter way to keep stock moving.'}).waitFor();
+ assert.equal(await publicPage.evaluate(()=>document.documentElement.dataset.theme),'dark');
+ assert.equal(await publicPage.evaluate(()=>localStorage.getItem('sunshine-theme')),'dark');
+ for(const mode of ['dark','light']){
+  if(await publicPage.evaluate(()=>document.documentElement.dataset.theme)!==mode)await themeButton.click();
+  assert.equal(await publicPage.evaluate(()=>getComputedStyle(document.documentElement).colorScheme),mode);
+  assert.equal(await publicPage.locator('.public-page').evaluate(el=>getComputedStyle(el).backgroundImage),'none');
+  for(const width of [1440,390]){
+   await publicPage.setViewportSize({width,height:900});
+   assert.equal(await publicPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
+   if(process.env.QA_SCREENSHOT_DIR)await publicPage.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-home-${mode}-${width}.png`,fullPage:true,animations:'disabled'});
+  }
+ }
  assert.equal(await publicPage.getByRole('link',{name:/Create.*account|Sign up/i}).count(),0);
  assert.match(await publicPage.locator('.public-caption').innerText(),/administrator/);
  for(const width of [1440,390]){
@@ -231,7 +252,7 @@ try{
  assert.equal(await page.getByRole('spinbutton',{name:'Seasonal demand multiplier'}).inputValue(),'1');
  await empty.goto('http://127.0.0.1:5197/#/reorder-calculator');await empty.getByRole('heading',{name:'No products to calculate'}).waitFor();
  await page.goto('http://127.0.0.1:5197/#/alerts');await page.getByRole('heading',{name:'Inventory alerts'}).waitFor();await page.getByRole('heading',{name:'No alerts match this view'}).waitFor();
- assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).backgroundColor),'rgb(5, 11, 43)');
+ assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).backgroundColor),'rgb(243, 242, 238)');
  let reportLoads=0;
  const reportInventory={...inventory,products:products.map((item,index)=>({...item,stock:index===0?5:20,reorderPoint:10,monthlySales:60,leadTime:7})),transactions:[{id:11,productId:1,type:'Stock Out',quantity:3,reference:'SO-QA',date:'2030-01-15T12:00:00Z',status:'Completed'}],adjustments:[{id:21,productId:1,systemQty:10,requestedQty:8,reason:'Cycle count: system 10, counted 8',status:'Approved',requestedById:1},{id:22,productId:2,systemQty:10,requestedQty:10,reason:'Manual adjustment',status:'Pending',requestedById:1}]};
  const reporting=await makePage(({path,method,json})=>{assert.equal(method,'GET');if(path.endsWith('/auth/me'))return json(200,{user});reportLoads++;return json(200,reportInventory);});
@@ -253,6 +274,25 @@ try{
  await empty.goto('http://127.0.0.1:5197/#/reports');await empty.getByRole('heading',{name:'No data for this report'}).waitFor();
  await sales.goto('http://127.0.0.1:5197/#/reports');await sales.getByRole('heading',{name:'This module is not part of your assigned workspace.'}).waitFor();
  console.log('All eight reports, explicit source, API refresh, assumptions, empty/restricted states, print and responsive layout passed.');
+ for(const mode of ['dark','light']){
+  if(await page.evaluate(()=>document.documentElement.dataset.theme)!==mode)await page.getByRole('button',{name:'Dark mode',exact:true}).click();
+  await page.goto('http://127.0.0.1:5197/#/users');await page.getByRole('heading',{name:'User management',exact:true}).waitFor();
+  await page.reload();await page.getByRole('heading',{name:'User management',exact:true}).waitFor();
+  for(const width of [1440,390]){
+   await page.setViewportSize({width,height:900});
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`${mode} workspace overflow at ${width}`);
+   if(process.env.QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-workspace-${mode}-${width}.png`,fullPage:true,animations:'disabled'});
+  }
+  await privacy.getByRole('button',{name:'Dark mode',exact:true}).click();
+  await privacy.getByRole('row').filter({hasText:'Alex Lopez'}).getByRole('button',{name:'Delete',exact:true}).click();
+  await checkDialogContrast(privacy);await privacy.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
+ }
+ const unavailableStorage=await makePage(({json})=>json(200,{}),false);
+ await unavailableStorage.addInitScript(()=>Object.defineProperty(window,'localStorage',{get(){throw new Error('Storage unavailable');}}));
+ await unavailableStorage.goto('http://127.0.0.1:5197/#/sign-in');
+ await unavailableStorage.getByRole('button',{name:'Dark mode',exact:true}).click();
+ assert.equal(await unavailableStorage.evaluate(()=>document.documentElement.dataset.theme),'dark');
+ console.log('Light/dark theme, system preference, stored choice after refresh, keyboard toggle, storage fallback, dialog contrast in both modes and responsive workspace passed.');
  console.log('Unknown routes, API-backed reorder defaults, empty calculator, API alerts, and theme checks passed.');
  console.log('401/403/404/500/network, forbidden route, and desktop/mobile navigation and overflow checks passed.');
  assert.deepEqual(errors,[]);console.log('Reviewer matrix, self-review prevention, empty Cycle Count, and login field errors passed. No browser exceptions.');

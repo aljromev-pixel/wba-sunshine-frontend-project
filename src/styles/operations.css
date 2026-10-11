@@ -7,7 +7,7 @@
   align-items: start;
   gap: 0.8rem;
   padding: 1rem 0;
-  border-top: 1px solid #e9efec;
+  border-top: 1px solid var(--border);
 }
 .alert-list strong {
   display: block;
@@ -15,15 +15,15 @@
 }
 .alert-list p {
   margin: 0.3rem 0;
-  color: #637e7e;
+  color: var(--text);
   font-size: 0.75rem;
 }
 .alert-list small {
-  color: #849695;
+  color: var(--text);
   font-size: 0.67rem;
 }
 .alert-list a {
-  color: #bd5b2e;
+  color: var(--accent-text);
   font-size: 0.72rem;
   font-weight: 800;
 }
@@ -32,7 +32,7 @@
 }
 .formula-card h2 {
   margin: 0.2rem 0 1.1rem;
-  font-family: Manrope, sans-serif;
+  font-family: Inter, sans-serif;
   font-size: 1.2rem;
 }
 .formula-results {
@@ -45,25 +45,25 @@
   gap: 0.3rem;
   padding: 0.8rem;
   border-radius: 9px;
-  background: #eef5f2;
+  background: var(--surface-raised);
 }
 .formula-results .reorder-result {
   grid-column: 1/-1;
-  background: #fff0e8;
+  background: var(--accent-soft);
 }
 .formula-results small {
-  color: #688080;
+  color: var(--text);
   font-size: 0.66rem;
   font-weight: 800;
 }
 .formula-results strong {
-  font-family: Manrope, sans-serif;
+  font-family: Inter, sans-serif;
   font-size: 1.6rem;
   letter-spacing: -0.06em;
 }
 .formula-results span,
 .formula-note {
-  color: #78908f;
+  color: var(--text);
   font-size: 0.68rem;
 }
 .formula-note {
@@ -72,15 +72,15 @@
 }
 .report-title {
   margin: 0.2rem 0 1rem;
-  font-family: Manrope, sans-serif;
+  font-family: Inter, sans-serif;
   font-size: 1rem;
 }
 .inline-button {
   padding: 0.35rem 0.55rem;
-  border: 1px solid #d6e4df;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fff;
-  color: #b8542e;
+  background: var(--surface);
+  color: var(--accent-text);
   font-size: 0.68rem;
   font-weight: 800;
 }

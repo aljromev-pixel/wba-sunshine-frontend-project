@@ -1,0 +1,91 @@
+/* Shared colours for public pages, workspace controls, and native form elements. */
+:root {
+  color-scheme: light;
+  --canvas: #f3f2ee;
+  --surface: #ffffff;
+  --surface-raised: #eae9e3;
+  --text: #242521;
+  --muted: #5c5e57;
+  --border: #c8cac0;
+  --accent: #e4b735;
+  --accent-hover: #d4a622;
+  --accent-text: #765700;
+  --accent-soft: #f8edc5;
+  --on-accent: #242006;
+  --focus: #846000;
+  --danger: #a82d2d;
+  --danger-hover: #8c2424;
+  --danger-text: #a02727;
+  --danger-bg: #fce9e8;
+  --success-text: #276342;
+  --success-bg: #e4f1e8;
+  --shadow-color: #24252112;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --canvas: #181a18;
+  --surface: #222522;
+  --surface-raised: #2e322e;
+  --text: #f2f3ed;
+  --muted: #b9bdb3;
+  --border: #53594f;
+  --accent: #e4b735;
+  --accent-hover: #efc950;
+  --accent-text: #edc653;
+  --accent-soft: #3d3520;
+  --on-accent: #242006;
+  --focus: #edc653;
+  --danger: #a82d2d;
+  --danger-hover: #8c2424;
+  --danger-text: #ffb1a9;
+  --danger-bg: #402726;
+  --success-text: #a0d9b2;
+  --success-bg: #233b2c;
+  --shadow-color: #00000026;
+}
+body, .application, .main-content, .public-page, .login-page { background: var(--canvas); color: var(--text); }
+.sidebar, .hero-panel, .login-brand, .public-visual { background: var(--surface); }
+.hero-panel { border-left: 4px solid var(--accent); }
+.brand-wordmark, .sunshine-lockup { color: var(--text); }
+.brand-wordmark span, .brand-wordmark::first-letter { color: var(--accent-text); }
+.profile .avatar, .profile-trigger { background: var(--accent-soft); color: var(--accent-text); }
+.sidebar nav a.active { background: var(--accent-soft); color: var(--text); }
+.sidebar nav a:hover, .sidebar nav a.active:hover { background: var(--surface-raised); color: var(--text); }
+.sidebar nav a.active i { color: var(--accent-text); }
+.button.primary, .confirm-dialog .button.primary {
+  border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); box-shadow: none;
+}
+.button.primary:hover:not(:disabled), .confirm-dialog .button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+.button.danger, .confirm-dialog .button.danger { border-color: var(--danger); background: var(--danger); color: #ffffff; }
+.button.danger:hover:not(:disabled), .confirm-dialog .button.danger:hover:not(:disabled) { background: var(--danger-hover); }
+.theme-toggle {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  min-height: 44px; padding: .55rem .75rem; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text); font-size: .8rem; font-weight: 600; white-space: nowrap;
+}
+.theme-toggle:hover { background: var(--surface-raised); }
+.topbar-actions { display: flex; align-items: center; gap: 1rem; }
+.auth-actions { display: flex; justify-content: flex-end; margin-bottom: 1.2rem; }
+.login-card { width: min(100% - 2rem, 530px); }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
+input:focus, select:focus, textarea:focus { border-color: var(--focus); box-shadow: none; }
+.public-visual { border-radius: 12px; box-shadow: none; }
+.public-features article { border-radius: 10px; }
+.metric-grid article, .surface { box-shadow: none; }
+.public-orbit, .login-sun { background: var(--accent-soft); }
+.public-header .public-back:hover { color: var(--accent-text); }
+@media (max-width: 520px) {
+  .topbar-actions { gap: .4rem; }
+  .topbar .theme-toggle { padding-inline: .5rem; font-size: .72rem; }
+  .topbar h1 { font-size: 1.15rem; }
+  .breadcrumb { font-size: .55rem; }
+  .public-header nav { justify-content: flex-start; }
+}
+@media print {
+  :root, :root[data-theme='dark'] {
+    color-scheme: light;
+    --canvas: #ffffff; --surface: #ffffff; --surface-raised: #eeeeee;
+    --text: #111111; --muted: #444444; --border: #bbbbbb; --accent-text: #765700;
+  }
+  .theme-toggle { display: none; }
+}

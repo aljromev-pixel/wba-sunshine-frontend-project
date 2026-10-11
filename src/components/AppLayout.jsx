@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { PERMISSIONS } from '../utils/permissions'
+import { ThemeToggle } from './ThemeToggle'
 
 const nav = [
   { href: '/dashboard', label: 'Overview', icon: '▦' },
@@ -81,15 +82,18 @@ export function AppLayout({ path, children }) {
             <p className="breadcrumb">SUNSHINE / INVENTORY WORKSPACE</p>
             <h1>{title(path)}</h1>
           </div>
-          <button className="header-user" onClick={() => go('/dashboard')} aria-label="Open dashboard">
-            <span className="profile-trigger">{user.initials}</span>
-            <span>
-              <strong>{user.name}</strong>
-              <small>
-                {user.department} • {user.roleLevel}
-              </small>
-            </span>
-          </button>
+          <div className="topbar-actions">
+            <ThemeToggle />
+            <button className="header-user" onClick={() => go('/dashboard')} aria-label="Open dashboard">
+              <span className="profile-trigger">{user.initials}</span>
+              <span>
+                <strong>{user.name}</strong>
+                <small>
+                  {user.department} • {user.roleLevel}
+                </small>
+              </span>
+            </button>
+          </div>
         </header>
         {notice && <div className={`toast ${notice.tone}`}>{notice.message}</div>}
         {children}

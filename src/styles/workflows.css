@@ -11,7 +11,7 @@
 .count-card > label {
   display: grid;
   gap: 0.38rem;
-  color: #526e70;
+  color: var(--text);
   font-size: 0.73rem;
   font-weight: 800;
 }
@@ -24,11 +24,11 @@
 .count-card input {
   width: 100%;
   padding: 0.68rem 0.75rem;
-  border: 1px solid #dbe6e3;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
-  color: #173b42;
-  outline-color: #c96535;
+  background: var(--surface);
+  color: var(--text);
+  outline-color: var(--text);
 }
 .compact-form textarea {
   min-height: 90px;
@@ -41,8 +41,8 @@
   margin-top: 1rem;
   padding: 0.75rem;
   border-radius: 8px;
-  background: #edf5f2;
-  color: #597576;
+  background: var(--surface-raised);
+  color: var(--text);
   font-size: 0.75rem;
 }
 .form-actions {
@@ -52,7 +52,7 @@
 }
 .form-error {
   margin: 0.8rem 0 0;
-  color: #b84e32;
+  color: var(--danger-text);
   font-size: 0.75rem;
   font-weight: 700;
 }
@@ -71,24 +71,24 @@
   gap: 0.35rem;
   padding: 1rem;
   border-radius: 10px;
-  background: #edf5f2;
+  background: var(--surface-raised);
 }
 .count-comparison small {
-  color: #688181;
+  color: var(--text);
   font-size: 0.7rem;
   font-weight: 800;
 }
 .count-comparison strong {
-  font-family: Manrope, sans-serif;
+  font-family: Inter, sans-serif;
   font-size: 1.65rem;
   letter-spacing: -0.06em;
 }
 .count-comparison span {
-  color: #78908f;
+  color: var(--text);
   font-size: 0.7rem;
 }
 .count-comparison .variance {
-  background: #fff2eb;
+  background: var(--surface-raised);
 }
 .adjustments-grid {
   grid-template-columns: 0.75fr 1.25fr;
@@ -107,24 +107,24 @@
 }
 .review-actions button {
   padding: 0.35rem 0.5rem;
-  border: 1px solid #cce0d9;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #ecf6f0;
-  color: #267153;
+  background: var(--surface-raised);
+  color: var(--success-text);
   font-size: 0.66rem;
   font-weight: 800;
 }
 .review-actions button:last-child {
-  border-color: #f1d1c4;
-  background: #fff4ef;
-  color: #b74d30;
+  border-color: var(--border);
+  background: var(--surface-raised);
+  color: var(--danger-text);
 }
 .success-note {
   margin: 0;
   padding: 0.7rem;
   border-radius: 8px;
-  background: #e9f5ed;
-  color: #267153;
+  background: var(--surface-raised);
+  color: var(--success-text);
   font-size: 0.75rem;
 }
 .confirm-overlay {
@@ -134,18 +134,18 @@
   display: grid;
   place-items: center;
   padding: 1rem;
-  background: rgb(14 35 34 / 48%);
+  background: rgb(24 26 24 / 48%);
 }
 .confirm-dialog {
   width: min(100%, 420px);
   padding: 1.5rem;
   border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 18px 48px rgb(14 35 34 / 24%);
+  background: var(--surface);
+  box-shadow: 0 18px 48px var(--shadow-color);
 }
 .confirm-dialog h2,
 .confirm-dialog p { margin-top: 0; }
-.confirm-dialog p { color: #5f7473; }
+.confirm-dialog p { color: var(--text); }
 button:disabled { cursor: not-allowed; opacity: 0.65; }
 @media (max-width: 700px) {
   .form-grid,

@@ -2,12 +2,14 @@ import { useRef, useState } from 'react'
 import { SunshineBrand } from '../components/Login'
 import { AsyncButton, FormError, FormField, useFormFeedback } from '../components/Shared'
 import { useApp } from '../context/AppContext'
+import { ThemeToggle } from '../components/ThemeToggle'
 
 export function Landing() {
   return <div className="public-page">
     <header className="public-header">
       <SunshineBrand />
       <nav aria-label="Account navigation">
+        <ThemeToggle />
         <a className="public-back" href="#/sign-in">Sign in</a>
       </nav>
     </header>
@@ -66,6 +68,7 @@ export function SetPassword() {
   return <main className="login-page">
     <section className="login-brand"><SunshineBrand /><p className="eyebrow">YOUR ACCOUNT, YOUR PASSWORD</p><h1>Make your workspace access your own.</h1><p>Your administrator has assigned your role. Set a private password before continuing.</p></section>
     <section className="login-card" aria-labelledby="password-heading">
+      <div className="auth-actions"><ThemeToggle /></div>
       <p className="eyebrow">SUNSHINE ACCESS</p><h2 id="password-heading">Set your own password</h2>
       <p>Replace the temporary password supplied by your administrator. Use at least 12 characters.</p>
       <form className="compact-form" onSubmit={submit}>
