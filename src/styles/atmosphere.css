@@ -1,0 +1,65 @@
+#root { isolation: isolate; }
+.ambient-background { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.ambient-background span { position: absolute; pointer-events: none; }
+.ambient-glow { width: min(70vw, 900px); height: min(70vw, 900px); border-radius: 50%; }
+.ambient-gold {
+  top: -25%; right: -18%;
+  background: radial-gradient(circle, rgb(228 183 53 / 16%), rgb(228 183 53 / 5%) 45%, transparent 70%);
+  animation: ambient-drift 18s ease-in-out infinite alternate;
+}
+.ambient-white {
+  left: -20%; bottom: -35%;
+  background: radial-gradient(circle, rgb(255 255 255 / 55%), transparent 65%);
+  animation: ambient-drift 24s ease-in-out infinite alternate-reverse;
+}
+.ambient-beam {
+  inset: 0;
+  background: linear-gradient(115deg, transparent 36%, rgb(228 183 53 / 5%) 40%, rgb(255 255 255 / 28%) 41%, transparent 44%, transparent 78%, rgb(228 183 53 / 6%) 80%, transparent 83%);
+}
+.ambient-sparks {
+  inset: 0; opacity: .45;
+  background: radial-gradient(circle at 12% 25%, var(--accent) 0 1px, transparent 3px), radial-gradient(circle at 89% 36%, var(--accent) 0 1px, transparent 4px), radial-gradient(circle at 78% 78%, var(--accent) 0 1px, transparent 3px), radial-gradient(circle at 35% 90%, white 0 1px, transparent 3px);
+}
+:root[data-theme='dark'] .ambient-gold { background: radial-gradient(circle, rgb(228 183 53 / 15%), rgb(228 183 53 / 3%) 48%, transparent 70%); }
+:root[data-theme='dark'] .ambient-white { background: radial-gradient(circle, rgb(255 255 255 / 6%), transparent 65%); }
+:root[data-theme='dark'] .ambient-beam { opacity: .25; }
+.public-page, .application, .login-page, .main-content { background: transparent; }
+.sidebar { transition: transform 240ms var(--motion-ease), visibility 0s; }
+.main-content { transition: margin-left 240ms var(--motion-ease); }
+.navigation-hidden .sidebar { transform: translateX(-100%); visibility: hidden; transition: transform 240ms var(--motion-ease), visibility 0s 240ms; }
+.navigation-hidden .main-content { margin-left: 0; }
+.workspace-heading { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+.workspace-title { min-width: 0; }
+.topbar { padding-left: 0; gap: .75rem; }
+.sidebar-toggle {
+  display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px;
+  flex-shrink: 0; width: 42px; height: 42px; border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); background: var(--surface); cursor: pointer;
+}
+.sidebar-toggle span { display: block; width: 18px; height: 2px; border-radius: 2px; background: currentColor; transition: transform 220ms var(--motion-ease), opacity 140ms ease; }
+.sidebar-toggle.is-open span:first-child { transform: translateY(6px) rotate(45deg); }
+.sidebar-toggle.is-open span:nth-child(2) { opacity: 0; }
+.sidebar-toggle.is-open span:last-child { transform: translateY(-6px) rotate(-45deg); }
+.sidebar-toggle:hover { background: var(--accent-soft); color: var(--accent-text); }
+.sidebar-close { display: none; }
+.navigation-backdrop { position: fixed; inset: 0; z-index: 30; border: 0; background: rgb(24 26 24 / 45%); animation: overlay-enter 140ms ease-out; }
+@keyframes ambient-drift { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(-3%, 3%, 0); } }
+@media (max-width: 900px) {
+  .sidebar { z-index: 40; }
+  .sidebar-close { display: flex; }
+  .sidebar-open { transform: translateX(0); visibility: visible; }
+  .main-content { margin-left: 0; padding-top: 1.5rem; transition: none; }
+  .topbar { padding-left: 0; }
+  .brand { grid-template-columns: 1fr auto; }
+  .sidebar-close { grid-column: 2; grid-row: 1 / 3; align-self: center; }
+}
+@media (max-width: 520px) {
+  .workspace-heading { gap: .5rem; }
+  .workspace-title h1 { font-size: 1rem; }
+  .breadcrumb { letter-spacing: .08em; }
+  .ambient-glow { width: 110vw; height: 110vw; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ambient-background *, .sidebar, .main-content, .sidebar-toggle span { animation: none !important; transition: none !important; }
+}
+@media print { .ambient-background, .sidebar-toggle, .navigation-backdrop { display: none; } }

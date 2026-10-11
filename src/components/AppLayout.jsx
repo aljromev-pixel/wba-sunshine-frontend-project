@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { PERMISSIONS } from '../utils/permissions'
 import { ThemeToggle } from './ThemeToggle'
@@ -24,17 +24,43 @@ const title = (path) =>
 
 export function AppLayout({ path, children }) {
   const { user, can, logout, notice } = useApp()
+  const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 900px)').matches)
   const [open, setOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+  const toggle = useRef(null)
+  const sidebar = useRef(null)
+  const visible = mobile ? open : !collapsed
+  const close = () => { setOpen(false); toggle.current?.focus() }
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 900px)')
+    const resize = () => { setMobile(media.matches); setOpen(false) }
+    media.addEventListener('change', resize)
+    return () => media.removeEventListener('change', resize)
+  }, [])
+  useEffect(() => {
+    if (!mobile || !open) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    sidebar.current.querySelector('button').focus()
+    const keyboard = (event) => {
+      if (event.key === 'Escape') { event.preventDefault(); setOpen(false); toggle.current?.focus() }
+      if (event.key !== 'Tab') return
+      const controls = [...sidebar.current.querySelectorAll('a, button:not([disabled])')]
+      const first = controls[0], last = controls.at(-1)
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+    }
+    document.addEventListener('keydown', keyboard)
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener('keydown', keyboard); toggle.current?.focus() }
+  }, [mobile, open])
   const go = (href) => {
     window.location.hash = href
     setOpen(false)
   }
   return (
-    <div className="application">
-      <button className="mobile-menu" aria-label="Open navigation" onClick={() => setOpen(true)}>
-        ☰
-      </button>
-      <aside className={`sidebar ${open ? 'sidebar-open' : ''}`} aria-label="Main navigation">
+    <div className={`application ${visible ? 'navigation-visible' : 'navigation-hidden'}`}>
+      {mobile && open && <button className="navigation-backdrop" aria-label="Dismiss navigation" tabIndex={-1} onClick={close} />}
+      <aside ref={sidebar} id="workspace-navigation" inert={!visible} className={`sidebar ${mobile && open ? 'sidebar-open' : ''}`} aria-label="Main navigation">
         <div className="brand">
           <span className="brand-wordmark" aria-label="Sunshine">
             Sun<span>shine</span>
@@ -42,8 +68,8 @@ export function AppLayout({ path, children }) {
           <span>
             <small>WALANGBROWNOUT APPLIANCES</small>
           </span>
-          <button className="close-menu" onClick={() => setOpen(false)} aria-label="Close navigation">
-            ×
+          <button className="sidebar-toggle sidebar-close is-open" onClick={close} aria-label="Close navigation">
+            <span /><span /><span />
           </button>
         </div>
         <nav>
@@ -76,11 +102,16 @@ export function AppLayout({ path, children }) {
           </button>
         </div>
       </aside>
-      <main className="main-content">
+      <main className="main-content" inert={mobile && open}>
         <header className="topbar">
-          <div>
+          <div className="workspace-heading">
+            <button ref={toggle} type="button" className={`sidebar-toggle ${visible ? 'is-open' : ''}`} aria-label={mobile ? 'Open navigation' : visible ? 'Collapse navigation' : 'Expand navigation'} aria-expanded={visible} aria-controls="workspace-navigation" onClick={() => mobile ? setOpen(value => !value) : setCollapsed(value => !value)}>
+              <span /><span /><span />
+            </button>
+            <div className="workspace-title">
             <p className="breadcrumb">SUNSHINE / INVENTORY WORKSPACE</p>
             <h1>{title(path)}</h1>
+            </div>
           </div>
           <div className="topbar-actions">
             <ThemeToggle />

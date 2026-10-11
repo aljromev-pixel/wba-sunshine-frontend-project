@@ -6,6 +6,7 @@
 @import './public.css' layer(theme);
 @import './palette.css' layer(theme);
 @import './motion.css' layer(theme);
+@import './atmosphere.css' layer(theme);
 
 /* Base structure; component layouts and the Sunshine theme have explicit precedence. */
 @layer base {

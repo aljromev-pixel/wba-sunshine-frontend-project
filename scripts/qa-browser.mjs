@@ -305,6 +305,33 @@ try{
  await motion.keyboard.press('Escape');await motion.getByRole('dialog').waitFor({state:'detached'});
  await motion.getByRole('button',{name:'Add product',exact:true}).hover();
  assert.equal(await motion.getByRole('button',{name:'Add product',exact:true}).evaluate(el=>getComputedStyle(el).transform),'none');
+ await motion.emulateMedia({reducedMotion:'no-preference'});
+ await motion.getByRole('button',{name:'Collapse navigation',exact:true}).click();
+ assert.equal(await motion.getByRole('button',{name:'Expand navigation',exact:true}).getAttribute('aria-expanded'),'false');
+ await motion.getByRole('link',{name:/Audit Trail/}).waitFor({state:'hidden'});
+ assert.equal(await motion.locator('#workspace-navigation').evaluate(el=>el.inert),true);
+ if(process.env.QA_SCREENSHOT_DIR)await motion.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-sidebar-collapsed-1440.png`,fullPage:true,animations:'disabled'});
+ await motion.getByRole('button',{name:'Expand navigation',exact:true}).click();
+ assert.equal(await motion.getByRole('button',{name:'Collapse navigation',exact:true}).getAttribute('aria-expanded'),'true');
+ await motion.setViewportSize({width:390,height:900});
+ await motion.getByRole('button',{name:'Open navigation',exact:true}).click();
+ await motion.getByRole('button',{name:'Close navigation',exact:true}).waitFor();
+ assert.equal(await motion.getByRole('button',{name:'Close navigation',exact:true}).evaluate(el=>document.activeElement===el),true);
+ await motion.keyboard.press('Shift+Tab');assert.equal(await motion.getByRole('button',{name:'Sign out',exact:true}).evaluate(el=>document.activeElement===el),true);
+ await motion.keyboard.press('Escape');await motion.getByRole('button',{name:'Open navigation',exact:true}).waitFor();
+ assert.equal(await motion.getByRole('button',{name:'Open navigation',exact:true}).evaluate(el=>document.activeElement===el),true);
+ assert.equal(await motion.locator('.ambient-background').getAttribute('aria-hidden'),'true');
+ await motion.emulateMedia({reducedMotion:'reduce'});
+ assert.equal(await motion.locator('.ambient-gold').evaluate(el=>getComputedStyle(el).animationName),'none');
+ if(process.env.QA_SCREENSHOT_DIR){
+  for(const mode of ['light','dark']){
+   if(await motion.evaluate(()=>document.documentElement.dataset.theme)!==mode)await motion.getByRole('button',{name:'Dark mode',exact:true}).click();
+   await motion.getByRole('button',{name:'Open navigation',exact:true}).click();
+   await motion.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-sidebar-${mode}-390.png`,fullPage:true,animations:'disabled'});
+   await motion.keyboard.press('Escape');
+  }
+ }
+ console.log('Desktop collapse/expand, mobile navigation focus trap, Escape restoration and reduced-motion lighting passed.');
  console.log('Page/dialog entrance, reduced-motion fallback, keyboard cancellation and pending-button progress passed.');
  console.log('Light/dark theme, system preference, stored choice after refresh, keyboard toggle, storage fallback, dialog contrast in both modes and responsive workspace passed.');
  console.log('Unknown routes, API-backed reorder defaults, empty calculator, API alerts, and theme checks passed.');
