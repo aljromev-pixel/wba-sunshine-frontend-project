@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AppLayout } from './components/AppLayout'
 import { Login } from './components/Login'
-import { Landing, SignUp } from './pages/PublicPages'
+import { Landing, SetPassword } from './pages/PublicPages'
 import { AsyncButton, FormError, LoadingState } from './components/Shared'
 import { useApp } from './context/AppContext'
 import { PERMISSIONS } from './utils/permissions'
@@ -45,14 +45,14 @@ export default function App() {
     return () => window.removeEventListener('hashchange', update)
   }, [])
   useEffect(() => {
-    if (user && ['/', '/sign-in', '/sign-up'].includes(path)) window.location.hash = '/dashboard'
+    if (user && !user.mustChangePassword && ['/', '/sign-in', '/sign-up'].includes(path)) window.location.hash = '/dashboard'
   }, [user, path])
   if (authLoading) return <section className="loading-state">Restoring your session…</section>
   if (!user) {
     if (path === '/' && !authError) return <Landing />
-    if (path === '/sign-up') return <SignUp />
     return <Login />
   }
+  if (user.mustChangePassword) return <SetPassword />
   if (inventoryLoading || inventoryError) return <AppLayout path={path}>
     <section className="surface">
       {inventoryLoading ? <LoadingState /> : <>

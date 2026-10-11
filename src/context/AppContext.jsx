@@ -59,7 +59,7 @@ export function AppProvider({ children }) {
         if (!active || version !== sessionVersion.current) return
         setUser({ ...authenticatedUser, initials: initials(authenticatedUser.name) })
         setAuthError('')
-        await loadInventory()
+        if (!authenticatedUser.mustChangePassword) await loadInventory()
       } catch (exception) {
         if (active && exception.name !== 'AbortError' && version === sessionVersion.current) setAuthError(apiErrorMessage(exception))
       } finally {
@@ -86,7 +86,9 @@ export function AppProvider({ children }) {
     setAuthError('')
     sessionStorage.setItem(tokenKey, token)
     setUser({ ...authenticatedUser, initials: initials(authenticatedUser.name) })
-    await loadInventory()
+    setInventoryError('')
+    if (authenticatedUser.mustChangePassword) inventoryService.reset()
+    else await loadInventory()
   }, [loadInventory])
 
   const value = useMemo(
@@ -109,7 +111,7 @@ export function AppProvider({ children }) {
       notify: (message, tone = 'success') => setNotice({ message, tone }),
       notice,
       login: (credentials) => authenticate('login', credentials),
-      register: (details) => authenticate('register', details),
+      changePassword: (details) => authenticate('changePassword', details),
       logout: async () => {
         const logoutRequest = authService.logout()
         sessionVersion.current += 1

@@ -32,77 +32,59 @@ async function checkDialogContrast(page){
 }
 try{
  browser=await chromium.launch({channel:'msedge',headless:true});
- let registrationCalls=0,releaseRegistration,registrationMode='validation',signupInventoryFail=true,signupLoginCalls=0;
- const publicPage=await makePage(({path,json,route})=>{
-  if(path.endsWith('/auth/register')){
-   registrationCalls++;
-   if(registrationMode==='validation')return new Promise(resolve=>releaseRegistration=()=>resolve(json(422,{message:'Validation failed.',errors:{email:['This email is already registered.']}})));
-   if(registrationMode==='offline')return route.abort('failed');
-   if(registrationMode==='limited')return json(429,{message:'Too many registration attempts. Please try again later.'});
-   assert.equal(route.request().postDataJSON().department,'Sales');
-   assert.equal(route.request().postDataJSON().name,'Test');assert.equal(route.request().postDataJSON().lastName,'Member');
-   return json(201,{token:'registration-test-token',user:{...user,department:'Sales',roleLevel:'Staff'}});
-  }
-  if(path.endsWith('/auth/login')){signupLoginCalls++;return json(200,{token:'test-only-token',user:{...user,department:'Sales',roleLevel:'Staff'}});}
-  if(path.endsWith('/auth/me'))return json(200,{user:{...user,department:'Sales',roleLevel:'Staff'}});
-  if(path.endsWith('/inventory')&&signupInventoryFail)return json(500,{message:'Inventory temporarily unavailable.'});
-  return json(200,inventory);
- },false);
+ let passwordCalls=0,inventoryCalls=0,releasePassword,passwordMode='validation',setupComplete=false,setupInventoryFail=true;
+ const employee={...user,department:'Sales',roleLevel:'Staff',mustChangePassword:true,isActive:true};
+ const publicPage=await makePage(({json})=>json(200,{}),false);
  await publicPage.goto('http://127.0.0.1:5197');
  await publicPage.getByRole('heading',{name:'A brighter way to keep stock moving.'}).waitFor();
+ assert.equal(await publicPage.getByRole('link',{name:/Create.*account|Sign up/i}).count(),0);
+ assert.match(await publicPage.locator('.public-caption').innerText(),/administrator/);
  for(const width of [1440,390]){
   await publicPage.setViewportSize({width,height:900});
   assert.equal(await publicPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`Landing overflow at ${width}`);
-  if(process.env.QA_SCREENSHOT_DIR)await publicPage.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-home-${width}.png`,fullPage:true});
  }
- await publicPage.getByRole('link',{name:'Create an account',exact:true}).click();
- await publicPage.getByRole('heading',{name:'Create your account',exact:true}).waitFor();
- assert.deepEqual(await publicPage.getByRole('combobox',{name:'Staff role'}).locator('option').allTextContents(),['Warehouse Staff','Sales Staff','Purchasing Staff']);
- await publicPage.getByRole('button',{name:'Create account',exact:true}).click();assert.equal(registrationCalls,0);
- assert.equal(await publicPage.getByRole('textbox',{name:'Full name',exact:true}).count(),0);
- await publicPage.getByRole('textbox',{name:'First name',exact:true}).fill('Test');
- await publicPage.getByRole('textbox',{name:'Email address'}).fill('test@example.test');
- await publicPage.locator('input[name="password"]').fill('test-only-password');await publicPage.locator('input[name="password_confirmation"]').fill('test-only-password');
- await publicPage.getByRole('button',{name:'Create account',exact:true}).click();assert.equal(registrationCalls,0);
- for(const control of await publicPage.locator('form input, form select').all())assert.equal(await control.getAttribute('required'),'');
- await publicPage.getByRole('textbox',{name:'Last name',exact:true}).fill('   ');await publicPage.getByRole('button',{name:'Create account',exact:true}).click();
- await publicPage.getByRole('alert').filter({hasText:'Enter your first name and last name.'}).waitFor();assert.equal(registrationCalls,0);
- await publicPage.getByRole('textbox',{name:'Last name',exact:true}).fill('Member');
- await publicPage.getByRole('textbox',{name:'Email address'}).fill('test@example.test');
- await publicPage.locator('input[name="password"]').fill('test-only-password');
- await publicPage.locator('input[name="password_confirmation"]').fill('different-password');
- await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('alert').filter({hasText:'The passwords do not match.'}).waitFor();assert.equal(registrationCalls,0);
- await publicPage.locator('input[name="password_confirmation"]').fill('test-only-password');
- await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('button',{name:'Creating account…'}).waitFor();
- for(const input of await publicPage.locator('form input, form select').all())assert.equal(await input.isDisabled(),true);
- await publicPage.locator('form').evaluate(form=>form.requestSubmit());assert.equal(registrationCalls,1);
- releaseRegistration();await publicPage.locator('input[name="email"][aria-invalid="true"]').waitFor();
- registrationMode='offline';await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('alert').filter({hasText:'Unable to reach the API'}).waitFor();
- registrationMode='limited';await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('alert').filter({hasText:'Too many registration attempts'}).waitFor();
+ await publicPage.goto('http://127.0.0.1:5197/#/sign-up');
+ await publicPage.getByRole('heading',{name:'Sign in to your workspace'}).waitFor();
+ assert.equal(await publicPage.getByRole('link',{name:/Create.*account|Sign up/i}).count(),0);
+ const setup=await makePage(({path,json,route})=>{
+  if(path.endsWith('/auth/me'))return json(200,{user:{...employee,mustChangePassword:!setupComplete}});
+  if(path.endsWith('/auth/password')){
+   passwordCalls++;
+   if(passwordMode==='validation')return new Promise(resolve=>releasePassword=()=>resolve(json(422,{message:'Validation failed.',errors:{current_password:['The current password is incorrect.']}})));
+   if(passwordMode==='offline')return route.abort('failed');
+   setupComplete=true;return json(200,{token:'private-password-token',user:{...employee,mustChangePassword:false}});
+  }
+  inventoryCalls++;return json(setupInventoryFail?500:200,setupInventoryFail?{message:'Inventory temporarily unavailable.'}:inventory);
+ });
+ await setup.goto('http://127.0.0.1:5197/#/inventory');
+ await setup.getByRole('heading',{name:'Set your own password'}).waitFor();assert.equal(inventoryCalls,0);
+ await setup.reload();await setup.getByRole('heading',{name:'Set your own password'}).waitFor();assert.equal(inventoryCalls,0);
  for(const width of [1440,390]){
-  await publicPage.setViewportSize({width,height:900});
-  assert.equal(await publicPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`Sign-up overflow at ${width}`);
-  if(process.env.QA_SCREENSHOT_DIR)await publicPage.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-signup-${width}.png`,fullPage:true});
+  await setup.setViewportSize({width,height:900});
+  assert.equal(await setup.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`Password setup overflow at ${width}`);
  }
- registrationMode='success';await publicPage.getByRole('button',{name:'Create account',exact:true}).click();await publicPage.getByRole('heading',{name:'Unable to load inventory'}).waitFor();
- assert.equal(await publicPage.evaluate(()=>sessionStorage.getItem('wba-auth-token')),'registration-test-token');assert.equal(new URL(publicPage.url()).hash,'#/dashboard');
- signupInventoryFail=false;await publicPage.getByRole('button',{name:'Retry inventory loading'}).click();await publicPage.getByRole('heading',{name:'Reliable answers for every customer.'}).waitFor();
- assert.equal(registrationCalls,4);assert.equal(signupLoginCalls,0);await publicPage.setViewportSize({width:1440,height:900});await publicPage.getByRole('link',{name:/Stock Out/}).waitFor();
- assert.equal(new URL(publicPage.url()).hash,'#/dashboard');assert.equal(await publicPage.getByRole('link',{name:/User Management/}).count(),0);
- await publicPage.reload();await publicPage.getByRole('heading',{name:'Reliable answers for every customer.'}).waitFor();assert.equal(registrationCalls,4);
- for(const [department,dashboard] of [['Warehouse','Keep every movement accountable.'],['Purchasing','Supply decisions, made clearer.']]){
-  const staffSignup=await makePage(({path,json,route})=>{
-   const staffUser={...user,department,roleLevel:'Staff'};
-   if(path.endsWith('/auth/register')){assert.equal(route.request().postDataJSON().department,department);return json(201,{token:'staff-registration-token',user:staffUser});}
-   if(path.endsWith('/auth/me'))return json(200,{user:staffUser});
-   return json(200,inventory);
-  },false);
-  await staffSignup.goto('http://127.0.0.1:5197/#/sign-up');await staffSignup.getByRole('textbox',{name:'First name',exact:true}).fill('Test');await staffSignup.getByRole('textbox',{name:'Last name',exact:true}).fill('Staff');await staffSignup.getByRole('textbox',{name:'Email address'}).fill('staff@example.test');
-  await staffSignup.getByRole('combobox',{name:'Staff role'}).selectOption(department);await staffSignup.locator('input[name="password"]').fill('test-only-password');await staffSignup.locator('input[name="password_confirmation"]').fill('test-only-password');
-  await staffSignup.getByRole('button',{name:'Create account',exact:true}).click();await staffSignup.getByRole('heading',{name:dashboard,exact:true}).waitFor();assert.equal(new URL(staffSignup.url()).hash,'#/dashboard');assert.equal(await staffSignup.getByRole('link',{name:/User Management/}).count(),0);
- }
+ await setup.locator('input[name="current_password"]').fill('temporary-test-password');
+ await setup.locator('input[name="password"]').fill('private-test-password');
+ await setup.locator('input[name="password_confirmation"]').fill('different-test-password');
+ await setup.getByRole('button',{name:'Save password and continue'}).click();
+ await setup.getByRole('alert').filter({hasText:'The passwords do not match.'}).waitFor();assert.equal(passwordCalls,0);
+ await setup.locator('input[name="password_confirmation"]').fill('private-test-password');
+ await setup.getByRole('button',{name:'Show passwords'}).click();assert.equal(await setup.locator('input[name="password"]').getAttribute('type'),'text');
+ await setup.getByRole('button',{name:'Save password and continue'}).click();await setup.getByRole('button',{name:'Saving password…'}).waitFor();
+ for(const input of await setup.locator('form input').all())assert.equal(await input.isDisabled(),true);
+ await setup.locator('form').evaluate(form=>form.requestSubmit());assert.equal(passwordCalls,1);
+ releasePassword();await setup.locator('input[name="current_password"][aria-invalid="true"]').waitFor();
+ passwordMode='offline';await setup.getByRole('button',{name:'Save password and continue'}).click();
+ await setup.getByRole('alert').filter({hasText:'Unable to reach the API'}).waitFor();
+ passwordMode='success';await setup.getByRole('button',{name:'Save password and continue'}).click();
+ await setup.getByRole('heading',{name:'Unable to load inventory'}).waitFor();
+ assert.equal(await setup.evaluate(()=>sessionStorage.getItem('wba-auth-token')),'private-password-token');
+ assert.equal(new URL(setup.url()).hash,'#/dashboard');
+ setupInventoryFail=false;await setup.getByRole('button',{name:'Retry inventory loading'}).click();
+ await setup.getByRole('heading',{name:'Reliable answers for every customer.'}).waitFor();assert.equal(passwordCalls,3);
+ await setup.reload();await setup.getByRole('heading',{name:'Reliable answers for every customer.'}).waitFor();assert.equal(passwordCalls,3);
  const protectedPage=await makePage(({json})=>json(200,{}),false);await protectedPage.goto('http://127.0.0.1:5197/#/inventory');await protectedPage.getByRole('heading',{name:'Sign in to your workspace'}).waitFor();
- console.log('Public landing, staff-only role selection, automatic sign-in for all three departments, session restoration, inventory retry without repeat registration, 422/429/network errors, pending submissions, protected routes and responsive layouts passed.');
+ console.log('Admin-only landing, closed sign-up route, mandatory password setup, pending submissions, validation/network errors, session restoration, saved-password inventory retry, and responsive layouts passed.');
  let meCalls=0;
  const restore=await makePage(({path,json})=>path.endsWith('/auth/me')?json(++meCalls===1?500:200,meCalls===1?{message:'Session service unavailable.'}:{user}):json(200,inventory));
  await restore.goto('http://127.0.0.1:5197');

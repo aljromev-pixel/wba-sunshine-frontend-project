@@ -211,7 +211,7 @@ export function Users() {
   const protectedAdmin = (account) => account.department === 'Administration' && account.roleLevel === 'Manager' && String(account.id) !== String(currentUser.id)
   const openEditor = (account = null) => {
     if (account && protectedAdmin(account)) return
-    setForm(account ? { ...account, name: account.firstName ?? account.name, lastName: account.lastName ?? '', password: '' } : { name: '', lastName: '', email: '', password: '', department: 'Warehouse', roleLevel: 'Staff' })
+    setForm(account ? { ...account, isActive: account.isActive ?? true, name: account.firstName ?? account.name, lastName: account.lastName ?? '', password: '' } : { name: '', lastName: '', email: '', password: '', department: 'Warehouse', roleLevel: 'Staff', isActive: true })
     setChangePassword(!account)
     setShowPassword(false)
     setError('')
@@ -233,7 +233,7 @@ export function Users() {
       if (form.id && !changePassword) delete payload.password
       if (form.id) await userService.update(form.id, payload)
       else await userService.create(payload)
-      notify(`User ${form.id ? 'updated' : 'created'}.`)
+      notify(form.id ? 'User updated.' : 'User created. Share the temporary password privately; the employee must replace it before accessing inventory.')
       setForm(null); setError(''); await load()
     } catch (exception) { handleError(exception) } finally { setSubmitting(false) }
   }
@@ -253,6 +253,7 @@ export function Users() {
       {form && <form className="surface compact-form" onSubmit={save}>
         <div className="section-heading"><div><p className="eyebrow">{form.id ? 'EDIT' : 'CREATE'}</p><h2>{form.id ? 'Edit user' : 'Add user'}</h2></div><button type="button" className="inline-button" onClick={() => { setForm(null); setError('') }} disabled={submitting}>Cancel</button></div>
         <div className="form-grid">
+          <FormField name="isActive" feedback={feedback}>Account access<select value={String(form.isActive)} onChange={(event) => setForm(current => ({ ...current, isActive: event.target.value === 'true' }))} disabled={submitting || String(form.id) === String(currentUser.id)}><option value="true">Active</option><option value="false">Disabled</option></select></FormField>
           <FormField name="name" feedback={feedback}>First name<input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} required maxLength={255} disabled={submitting} autoComplete="given-name" /></FormField>
           <FormField name="lastName" feedback={feedback}>Last name<input value={form.lastName} onChange={(event) => setForm((current) => ({ ...current, lastName: event.target.value }))} required={!form.id} maxLength={255} disabled={submitting} autoComplete="family-name" /></FormField>
           <FormField name="email" feedback={feedback}>Email<input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} required disabled={submitting} /></FormField>
@@ -261,12 +262,12 @@ export function Users() {
         </div>
         {form.id && !changePassword && <div><button type="button" className="button" disabled={submitting} onClick={() => setChangePassword(true)}>Change password</button></div>}
         {changePassword && <section aria-label="Password settings">
-          <FormField name="password" feedback={feedback}>{form.id ? 'New password' : 'Password'}<input type={showPassword ? 'text' : 'password'} minLength={8} maxLength={255} value={form.password || ''} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required disabled={submitting} autoComplete="new-password" /></FormField>
+          <FormField name="password" feedback={feedback}>{form.id ? 'New password' : 'Temporary password'}<input type={showPassword ? 'text' : 'password'} minLength={8} maxLength={255} value={form.password || ''} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} required disabled={submitting} autoComplete="new-password" /></FormField>
           <div className="form-actions">
             <button type="button" className="inline-button" aria-pressed={showPassword} disabled={submitting} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? 'Hide password' : 'Show password'}</button>
             {form.id && <button type="button" className="inline-button" disabled={submitting} onClick={() => { setChangePassword(false); setShowPassword(false); setForm((current) => ({ ...current, password: '' })); setError('') }}>Cancel password change</button>}
           </div>
-          <p className="muted">Enter a new password with at least 8 characters. Saving it signs out other sessions.</p>
+          <p className="muted">{String(form.id) === String(currentUser.id) ? 'Enter a new password with at least 8 characters. Your other sessions will be revoked.' : 'Enter a temporary password with at least 8 characters and share it privately. The employee must replace it before accessing inventory; previous sessions are revoked.'}</p>
         </section>}
         <FormError>{error}</FormError>
         <AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{form.id ? 'Save user' : 'Create user'}</AsyncButton>
@@ -281,7 +282,7 @@ export function Users() {
               <tr>
                 <th>User</th>
                 <th>Department</th>
-                <th>Role level</th>
+                <th>Role level</th><th>Account access</th>
                 <th></th>
               </tr>
             </thead>
@@ -292,7 +293,7 @@ export function Users() {
                     <strong>{u.name}</strong>
                   </td>
                   <td>{u.department}</td>
-                  <td>{u.roleLevel}</td>
+                  <td>{u.roleLevel}</td><td>{u.isActive === false ? 'Disabled' : u.mustChangePassword ? 'Password setup required' : 'Active'}</td>
                   <td>
                     {protectedAdmin(u) ? <span className="muted">Protected administrator</span> : <>
                       <button className="inline-button" disabled={submitting} onClick={() => openEditor(u)}>Edit</button>

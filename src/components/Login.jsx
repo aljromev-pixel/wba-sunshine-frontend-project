@@ -49,7 +49,7 @@ export function Login() {
           {canRetrySession && <button type="button" className="inline-button" onClick={retrySession} disabled={submitting}>Retry session restoration</button>}
           <AsyncButton className="button primary" loading={submitting} loadingLabel="Signing in…">Sign in</AsyncButton>
         </form>
-        <p className="public-account-link">New to Sunshine? <a href="#/sign-up">Sign up</a></p>
+        <p className="public-account-link">Need an account? Contact your administrator for access.</p>
         <a className="public-back" href="#/">← Back to home</a>
       </section>
     </main>
