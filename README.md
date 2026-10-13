@@ -38,6 +38,9 @@ VITE_API_TIMEOUT_MS=15000
 - Adjustment review by authorized users other than the requester
 - Role-protected product and batch CRUD
 - Administration Manager-only user-management CRUD
+- Role-protected Trash with recovery for eligible products, empty batches and users
+- In-app movement/adjustment notifications with account-specific read status
+- Demand classifications, verified monthly sales history, and saved seasonal month rules
 
 ## Build and verification
 
@@ -106,12 +109,12 @@ real-time accounting or independently stored backend reports.
 | --- | --- |
 | Inventory Summary | Saved product stock/reorder points, with calculated stock status. |
 | Stock Movement | API movement records, type, quantity, reference, timestamp, recorded stock before/after, and storage locations. Legacy missing balances are shown as not recorded. |
-| Low Stock | Stock ≤ saved reorder point; shortfall = max(0, reorder point − stock). |
+| Low Stock | Usable stock ≤ saved reorder point; shortfall = max(0, reorder point − usable stock). Expired stock is excluded. |
 | Expiring Stock | Quantity > 0 and expiry between today and 30 days ahead, inclusive, using the API warehouse timezone (default Asia/Manila). Excludes expired/depleted/undated batches. |
 | Inventory Discrepancy | Adjustment requested quantity differs from stock recorded at submission, across all statuses. Variance = requested − recorded quantity. |
 | Cycle Count | Adjustments whose reason matches `Cycle count: system N, counted N`, including matched counts. This is the current UI convention; the API has no structured count-source field, so manual reasons matching it are also included. |
 | Adjustment | All API adjustment records, across Pending/Approved/Rejected statuses. |
-| Seasonal Reorder | Saved monthly sales ÷ 30 × explicit demand multiplier × saved lead time, plus safety stock. Safety stock = daily demand × lead time × safety percent ÷ 100. Round the resulting reorder point up; shortfall = max(0, result − stock). |
+| Seasonal Reorder | Average of recorded sales months within the last 12 completed warehouse-calendar months ÷ 30 × explicit report demand multiplier × saved lead time, plus safety stock. Falls back to saved monthly sales if recent history is absent. Safety stock = daily demand × lead time × safety percent ÷ 100. Round the resulting reorder point up; shortfall uses usable stock. |
 
 Movement, discrepancy, cycle-count, and adjustment reports accept inclusive date
 ranges in the warehouse timezone. Stock reports describe the current snapshot;
@@ -127,6 +130,23 @@ saved stock or reorder points. Run `node --test scripts/reports.test.mjs` to ver
 report rules. Permissions remain those of the existing Reports route.
 
 ## QA regression
+
+The calculator selects the saved multiplier for the chosen planning month and a
+classification-based safety default (15% for seasonal/traceable, 10% otherwise).
+Its scenarios remain editable. Monthly sales totals must come from verified sales
+records; generic Stock Out transactions are not automatically counted as sales.
+Missing months are disclosed rather than silently treated as zero. Suggested
+replenishment means units needed to reach the calculated reorder point, not an
+economic order quantity or an automatically submitted purchase order.
+
+Inventory refreshes every 30 seconds while the tab is visible, and when returning
+to it. Refresh pauses while a form or dialog is open. Background failures preserve
+the current snapshot and show a retryable status. Trash and notifications are
+paginated. Deleted account tokens are revoked; restored accounts stay disabled.
+Records protected by stock/history rules remain protected. Trash cannot recover
+records that were permanently deleted before this upgrade, and no permanent purge
+action is exposed. Notifications record new events; historical activity stays in
+the movement and audit views. This release requires the backend's new migrations.
 
 See [QA_REGRESSION.md](QA_REGRESSION.md) for the executed checklist, defect retests,
 tooling prerequisites, and verification limits. `npm run qa:browser` checks deterministic
