@@ -111,18 +111,33 @@ try{
    await animatedTheme.setViewportSize({width,height:740});
    const logo=await animatedTheme.locator('.public-orbit').boundingBox(),sun=await animatedTheme.locator('.public-orbit .sun-icon').boundingBox();
    assert.ok(Math.abs(logo.x+logo.width/2-sun.x-sun.width/2)<.5&&Math.abs(logo.y+logo.height/2-sun.y-sun.height/2)<.5,'Mobile sun artwork must be centered inside its circle');
-   const mark=await animatedTheme.locator('.wba-mark').boundingBox();assert.equal(mark.width,mark.height,'The WBA mark must retain its square proportions');assert.equal(await animatedTheme.locator('.wba-mark').evaluate(img=>img.complete&&img.naturalWidth>0),true);
+   const mark=await animatedTheme.locator('.wba-mark').boundingBox();assert.equal(mark.width,mark.height,'The WBA mark must retain its square proportions');assert.equal(await animatedTheme.locator('.wba-mark').getAttribute('viewBox'),'0 0 128 128');assert.equal(await animatedTheme.locator('.wba-mark .wba-sun-lettering').textContent(),'WBA');assert.equal(await animatedTheme.locator('.wba-mark .wba-sun-rays > g').count(),12);
   }
   await animatedTheme.close();
  }
+ for(const [mode,savedReducedMotion] of [['light',false],['dark',true]]){
+  const boot=await makePage(({json})=>json(200,{}),false);let releaseBoot;
+  await boot.addInitScript(({mode,savedReducedMotion})=>{localStorage.setItem('sunshine-theme',mode);if(savedReducedMotion)localStorage.setItem('wba-display-preferences',JSON.stringify({motion:'reduced'}));},{mode,savedReducedMotion});
+  await boot.route('**/src/main.jsx',route=>new Promise(resolve=>releaseBoot=()=>resolve(route.continue())));
+  await boot.goto('http://127.0.0.1:5197',{waitUntil:'commit'});await boot.locator('.boot-loading .wba-sun-lettering').waitFor();
+  assert.equal(await boot.evaluate(()=>document.documentElement.dataset.theme),mode);assert.equal(await boot.locator('.boot-loading .wba-sun-rays').evaluate(el=>getComputedStyle(el).animationName),savedReducedMotion?'none':'wba-boot-rays-rotate');
+  assert.equal(await boot.locator('.boot-emblem').evaluate(el=>getComputedStyle(el).animationName),'none');assert.equal(await boot.locator('.boot-loading .wba-sun-lettering').evaluate(el=>getComputedStyle(el).animationName),'none');
+  await boot.emulateMedia({reducedMotion:'reduce'});assert.equal(await boot.locator('.boot-loading .wba-sun-rays').evaluate(el=>getComputedStyle(el).animationName),'none');
+  for(const viewport of [{width:320,height:480},{width:844,height:390},{width:1440,height:900}]){await boot.setViewportSize(viewport);assert.equal(await boot.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);const emblem=await boot.locator('.boot-emblem').boundingBox();assert.ok(Math.abs(emblem.x+emblem.width/2-viewport.width/2)<1&&emblem.y>=0&&emblem.y+emblem.height<=viewport.height,'Startup emblem must be centered and fit the viewport');}
+  releaseBoot();await boot.getByRole('heading',{name:'A brighter way to keep stock moving.'}).waitFor();assert.equal(await boot.locator('.boot-loading').count(),0,'React must replace the startup loading screen as soon as it is ready');await boot.close();
+ }
  let releaseSession;
  const loadingLogo=await makePage(({path,json})=>path.endsWith('/auth/me')?new Promise(resolve=>releaseSession=()=>resolve(json(200,{user}))):json(200,inventory));
- await loadingLogo.goto('http://127.0.0.1:5197');await loadingLogo.locator('.loading-logo .sun-icon').waitFor();
- assert.equal(await loadingLogo.locator('.loading-logo .sun-icon').evaluate(el=>getComputedStyle(el).animationName),'sun-rotate');
+ await loadingLogo.goto('http://127.0.0.1:5197');await loadingLogo.locator('.loading-logo .wba-sun-rays').waitFor();
+ assert.equal(await loadingLogo.locator('.loading-logo .wba-sun-rays').evaluate(el=>getComputedStyle(el).animationName),'wba-rays-rotate');
+ const rayMotion=await loadingLogo.locator('.loading-logo .wba-emblem').evaluate(svg=>{const rays=svg.querySelector('.wba-sun-rays'),letters=svg.querySelector('.wba-sun-lettering'),animation=rays.getAnimations()[0];animation.pause();animation.currentTime=0;const before=letters.getBoundingClientRect(),first=getComputedStyle(rays).transform;animation.currentTime=1000;const after=letters.getBoundingClientRect();return{first,last:getComputedStyle(rays).transform,lettersStable:before.x===after.x&&before.y===after.y&&before.width===after.width&&before.height===after.height,emblemAnimation:getComputedStyle(svg).animationName,lettersAnimation:getComputedStyle(letters).animationName};});
+ assert.notEqual(rayMotion.first,rayMotion.last,'The sunray border must rotate');assert.equal(rayMotion.lettersStable,true,'WBA must remain stationary inside the rotating rays');assert.equal(rayMotion.emblemAnimation,'none');assert.equal(rayMotion.lettersAnimation,'none');
+ for(const mode of ['light','dark']){await loadingLogo.evaluate(mode=>document.documentElement.dataset.theme=mode,mode);for(const viewport of [{width:320,height:480},{width:390,height:640},{width:844,height:390},{width:1440,height:900}]){await loadingLogo.setViewportSize(viewport);assert.equal(await loadingLogo.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);const logo=await loadingLogo.locator('.loading-logo').boundingBox(),emblem=await loadingLogo.locator('.loading-logo .wba-emblem').boundingBox();assert.ok(Math.abs(logo.x+logo.width/2-emblem.x-emblem.width/2)<.5&&Math.abs(logo.y+logo.height/2-emblem.y-emblem.height/2)<.5,'Loading emblem must remain centered');assert.ok(emblem.y>=0&&emblem.y+emblem.height<=viewport.height);}}
  await loadingLogo.emulateMedia({reducedMotion:'reduce'});
- assert.equal(await loadingLogo.locator('.loading-logo .sun-icon').evaluate(el=>getComputedStyle(el).animationName),'none');
+ assert.equal(await loadingLogo.locator('.loading-logo .wba-sun-rays').evaluate(el=>getComputedStyle(el).animationName),'none');
+ await loadingLogo.emulateMedia({reducedMotion:'no-preference'});await loadingLogo.evaluate(()=>document.documentElement.dataset.motion='reduced');assert.equal(await loadingLogo.locator('.loading-logo .wba-sun-rays').evaluate(el=>getComputedStyle(el).animationName),'none');
  releaseSession();await loadingLogo.getByRole('heading',{name:'A complete view of inventory control.'}).waitFor();await loadingLogo.close();
- console.log('Flashlight reveal origin, full-page expansion and reverse contraction, unsupported-browser fallback, reduced motion, stored choice, rotating loading logo and centered mobile suns passed.');
+ console.log('WBA startup and session loading, independently rotating ray borders, stationary centered lettering, theme/storage preferences, reduced motion, immediate loader removal, mobile layouts and flashlight transitions passed.');
  assert.equal(await publicPage.getByRole('link',{name:/Create.*account|Sign up/i}).count(),0);
  assert.match(await publicPage.locator('.public-caption').innerText(),/administrator/);
  for(const width of [1440,390]){

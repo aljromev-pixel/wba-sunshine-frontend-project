@@ -263,3 +263,17 @@ text-contrast failures were found. Narrow preference options use rows to avoid
 splitting labels. These are local browser checks with intercepted API fixtures;
 they do not establish hosted or physical-device verification. Sunny remains
 unchanged and excluded from this work.
+
+WBA sunburst follow-up: the SVG emblem puts WBA inside a charcoal sun with a
+twelve-ray gold border. The public logo, sidebar, favicon and downloadable logo
+share the design. The initial HTML shows a branded loader while the app bundle
+loads; React replaces it immediately when ready. Session and inventory loading
+use the same emblem. Only the ray group rotates; the disc and lettering remain
+stationary. Light/dark themes and device or saved reduced-motion preferences
+apply to the startup loader as well as React loading states. Tests hold the app
+bundle and session response to verify actual pending states, loader removal,
+independent rotation and stable lettering. Startup/session previews were checked
+in both themes at 320px portrait, 844px landscape and 1440px desktop widths.
+The complete browser regression and production build passed. These are local
+checks with intercepted requests; no hosted or physical-device result is claimed.
+Sunny files remain untouched and excluded from the release.
