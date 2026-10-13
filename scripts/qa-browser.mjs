@@ -342,6 +342,35 @@ try{
   }
  }
  console.log('Desktop collapse/expand, mobile navigation focus trap, Escape restoration and reduced-motion lighting passed.');
+ let mobileLogouts=0;
+ const mobileLogout=await makePage(({path,json})=>{
+  if(path.endsWith('/auth/logout')){mobileLogouts++;return json(200,{message:'Signed out.'});}
+  return json(200,path.endsWith('/auth/me')?{user}:inventory);
+ });
+ await mobileLogout.goto('http://127.0.0.1:5197/#/dashboard');
+ for(const viewport of [{width:390,height:640},{width:320,height:480},{width:844,height:390}]){
+  await mobileLogout.setViewportSize(viewport);
+  await mobileLogout.getByRole('button',{name:'Open navigation',exact:true}).click();
+  const menu=mobileLogout.locator('#workspace-navigation');
+  const box=await menu.boundingBox();
+  assert.ok(box.height<=viewport.height+1,'Mobile sidebar must fit the visible viewport');
+  await mobileLogout.mouse.move(box.x+box.width/2,viewport.height/2);
+  await mobileLogout.mouse.wheel(0,2000);
+  await mobileLogout.waitForFunction(()=>{
+   const sidebar=document.getElementById('workspace-navigation');
+   const button=sidebar.querySelector('.profile button');
+   const rect=button.getBoundingClientRect();
+   return sidebar.scrollTop>0&&rect.top>=0&&rect.bottom<=innerHeight;
+  });
+  assert.equal(await mobileLogout.evaluate(()=>document.body.style.overflow),'hidden');
+  if(process.env.QA_SCREENSHOT_DIR)await mobileLogout.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/mobile-sign-out-${viewport.width}x${viewport.height}.png`,animations:'disabled'});
+  if(viewport.width===844){
+   await mobileLogout.getByRole('button',{name:'Sign out',exact:true}).click();
+   await mobileLogout.waitForFunction(()=>sessionStorage.getItem('wba-auth-token')===null);
+  }else await mobileLogout.keyboard.press('Escape');
+ }
+ assert.equal(mobileLogouts,1,'The reachable sign-out control must log out once');
+ console.log('Mobile portrait, narrow and landscape sidebar scrolling and sign-out passed.');
  console.log('Page/dialog entrance, reduced-motion fallback, keyboard cancellation and pending-button progress passed.');
  console.log('Light/dark theme, system preference, stored choice after refresh, keyboard toggle, storage fallback, dialog contrast in both modes and responsive workspace passed.');
  console.log('Unknown routes, API-backed reorder defaults, empty calculator, API alerts, and theme checks passed.');
