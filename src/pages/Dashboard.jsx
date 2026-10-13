@@ -70,7 +70,7 @@ export function Dashboard() {
       </div>
       <section className="surface"><h2>Stock health distribution</h2><div className="stock-chart">{['In stock', 'Low stock', 'Near capacity'].map(status => {
         const count = data.products.filter(product => getStockStatus(product) === status).length
-        return <div key={status}><span>{status}</span><meter aria-label={`${status} products`} min="0" max={Math.max(1, data.products.length)} value={count} /><strong>{count}</strong></div>
+        return <div key={status}><span>{status}</span><div className={`chart-meter ${status.toLowerCase().replaceAll(' ', '-')}`} role="meter" aria-label={`${status} products`} aria-valuemin={0} aria-valuemax={Math.max(1, data.products.length)} aria-valuenow={count} aria-valuetext={`${count} of ${data.products.length} products`}><span style={{ width: `${count / Math.max(1, data.products.length) * 100}%` }} /></div><strong>{count}</strong></div>
       })}</div><p className="muted">Low-stock status uses usable quantities. Capacity uses total physical stock.</p></section>
       <div className="two-column">
         <section className="surface">
@@ -95,7 +95,7 @@ export function Dashboard() {
                     {item.id} · {formatDate(item.date, true)}
                   </small>
                 </div>
-                <b>
+                <b data-direction={movementChange(item).startsWith('+') ? 'increase' : /^[−-]/.test(movementChange(item)) ? 'decrease' : 'neutral'}>
                   {movementChange(item)}
                 </b>
               </div>

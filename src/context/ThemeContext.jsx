@@ -13,7 +13,10 @@ document.documentElement.dataset.theme = savedTheme() || systemTheme()
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme)
-  useLayoutEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = theme
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#181a18' : '#f3f2ee')
+  }, [theme])
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const update = () => setTheme(savedTheme() || systemTheme())
