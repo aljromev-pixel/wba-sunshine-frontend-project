@@ -16,8 +16,17 @@ export const daysUntil = (date) => {
   }
   return (calendarDay(date) - calendarDay(today())) / 86400000
 }
+export const usableStock = product => Number(product?.usableStock ?? product?.stock ?? 0)
+export const movementChange = movement => {
+  if (movement.type === 'Transfer') return `↔ ${movement.quantity}`
+  if (movement.stockBefore != null && movement.stockAfter != null) {
+    const delta = movement.stockAfter - movement.stockBefore
+    return `${delta > 0 ? '+' : ''}${delta}`
+  }
+  return `${['Stock In', 'Return', 'Opening Balance'].includes(movement.type) ? '+' : movement.type === 'Stock Out' ? '−' : '±'}${movement.quantity}`
+}
 export const getStockStatus = (product) =>
-  product.stock <= product.reorderPoint
+  usableStock(product) <= product.reorderPoint
     ? 'Low stock'
     : product.capacity > 0 && product.stock >= product.capacity * 0.9
       ? 'Near capacity'
@@ -38,6 +47,16 @@ export const calculateReorder = ({ monthlySales, leadTime, safetyPercent, multip
   const dailyDemand = Number(monthlySales) / 30
   const safetyStock = dailyDemand * Number(leadTime) * (Number(safetyPercent) / 100)
   return { dailyDemand, safetyStock, reorderPoint: dailyDemand * Number(multiplier) * Number(leadTime) + safetyStock }
+}
+export const planningBaseline = (product, targetMonth = today().slice(0, 7)) => {
+  const [year, month] = today().split('-').map(Number)
+  const cutoffDate = new Date(Date.UTC(year, month - 13, 1))
+  const cutoff = `${cutoffDate.getUTCFullYear()}-${String(cutoffDate.getUTCMonth() + 1).padStart(2, '0')}`
+  const history = (product.monthlySalesHistory || []).filter(row => row.month >= cutoff && row.month < today().slice(0, 7))
+  const monthlySales = history.length ? history.reduce((sum, row) => sum + Number(row.quantity), 0) / history.length : Number(product.monthlySales || 0)
+  const multiplier = Number(product.seasonalProfile?.find(row => Number(row.month) === Number(targetMonth.slice(5, 7)))?.multiplier ?? 1)
+  const safetyPercent = product.demandPattern === 'Seasonal-Critical' || product.demandPattern === 'Traceable-High Accuracy' ? 15 : 10
+  return { monthlySales, multiplier, safetyPercent, months: history.length }
 }
 export const validateMovement = ({ type, product, quantity, batch }) => {
   if (!product) return 'Choose a product.'

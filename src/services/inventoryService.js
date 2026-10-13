@@ -43,6 +43,9 @@ export const inventoryService = {
     }
   },
   snapshot: () => clone(state),
+  updateNotificationCount(unreadCount) {
+    applyState({ ...state, notificationSummary: { unreadCount } })
+  },
   product: (id) => clone(state.products.find((item) => item.id === id)),
   fifo: (productId) => clone(fifoBatch(state.batches, productId)),
   alerts: () => clone(state.alerts),
