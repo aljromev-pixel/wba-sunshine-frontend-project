@@ -7,6 +7,7 @@ export const apiErrorMessage = (exception) => {
   }
 
   if (exception?.status === 403) {
+    if (exception?.data?.code === 'LOGIN_PORTAL_MISMATCH') return exception.message
     return 'You do not have permission to perform this action.'
   }
 

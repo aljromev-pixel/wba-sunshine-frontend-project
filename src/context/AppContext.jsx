@@ -1,9 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { authService } from '../services/authService'
-import { setAuthTokenProvider, setUnauthorizedHandler } from '../services/apiClient'
+import { ApiError, setAuthTokenProvider, setUnauthorizedHandler } from '../services/apiClient'
 import { inventoryService } from '../services/inventoryService'
 import { can } from '../utils/permissions'
 import { apiErrorMessage } from '../utils/apiErrors'
+import { accountPortal } from '../utils/authPortal'
 
 const AppContext = createContext(null)
 const tokenKey = 'wba-auth-token'
@@ -78,6 +79,7 @@ export function AppProvider({ children }) {
         const { user: authenticatedUser } = await authService.me({ signal: controller.signal })
         if (!active || version !== sessionVersion.current) return
         setUser({ ...authenticatedUser, initials: initials(authenticatedUser.name) })
+        sessionStorage.setItem('wba-auth-portal', accountPortal(authenticatedUser))
         setAuthError('')
         if (!authenticatedUser.mustChangePassword) await loadInventory()
       } catch (exception) {
@@ -103,12 +105,17 @@ export function AppProvider({ children }) {
     const version = ++sessionVersion.current
     const { token, user: authenticatedUser } = await authService[action](details)
     if (version !== sessionVersion.current) return
+    if (action === 'login' && accountPortal(authenticatedUser) !== (details.portal || 'staff')) {
+      throw new ApiError('This account must use the other sign-in portal.', { status: 403 })
+    }
     setAuthError('')
     sessionStorage.setItem(tokenKey, token)
+    sessionStorage.setItem('wba-auth-portal', accountPortal(authenticatedUser))
     setUser({ ...authenticatedUser, initials: initials(authenticatedUser.name) })
     setInventoryError('')
     if (authenticatedUser.mustChangePassword) inventoryService.reset()
     else await loadInventory()
+    return authenticatedUser
   }, [loadInventory])
 
   const value = useMemo(

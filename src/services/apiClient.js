@@ -55,7 +55,7 @@ const errorMessage = (data, fallback) => {
 export async function request(path, { method = 'GET', body, headers = {}, signal, timeoutMs = apiTimeoutMs } = {}) {
   const url = requestUrl(path)
   const token = authTokenProvider ? await authTokenProvider() : null
-  const isWrite = method !== 'GET' && !String(path).endsWith('/auth/login')
+  const isWrite = method !== 'GET' && !/^v1\/auth\/(admin\/)?login$/.test(String(path))
   const requestHeaders = { Accept: 'application/json', ...headers }
 
   if (body !== undefined) requestHeaders['Content-Type'] = 'application/json'

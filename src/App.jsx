@@ -14,6 +14,7 @@ import { TrashPage } from './pages/TrashPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { PreferencesProvider } from './context/PreferencesContext'
 import { SettingsPage, HelpCenter } from './pages/SettingsPage'
+import { accountPortal, dashboardPath, savedPortal } from './utils/authPortal'
 
 const permissions = {
   '/inventory': PERMISSIONS.INVENTORY_VIEW,
@@ -53,16 +54,21 @@ function AppRoutes() {
     return () => window.removeEventListener('hashchange', update)
   }, [])
   useEffect(() => {
-    if (user && !user.mustChangePassword && ['/', '/sign-in', '/sign-up'].includes(path)) window.location.hash = '/dashboard'
+    if (user && !user.mustChangePassword && ['/', '/sign-in', '/admin/sign-in', '/sign-up', '/dashboard'].includes(path)) window.location.hash = dashboardPath(user)
   }, [user, path])
   if (authLoading) return <LoadingState fullPage>Restoring your session…</LoadingState>
   if (!user) {
     if (path === '/' && !authError) return <Landing />
-    return <Login />
+    const portal = path === '/sign-in' ? 'staff' : path.startsWith('/admin/') ? 'admin' : savedPortal()
+    return <Login key={portal} portal={portal} />
   }
   if (user.mustChangePassword) return <SetPassword />
+  if ((path === '/admin/dashboard' && accountPortal(user) !== 'admin') || (path === '/staff/dashboard' && accountPortal(user) !== 'staff')) {
+    return <AppLayout path={path}><section className="surface forbidden"><h2>This dashboard belongs to the other login portal.</h2><a className="button primary" href={`#${dashboardPath(user)}`}>Return to your dashboard</a></section></AppLayout>
+  }
+  const workspacePath = ['/admin/dashboard', '/staff/dashboard'].includes(path) ? '/dashboard' : path
   const supportRoute = ['/settings', '/help'].includes(path)
-  if (!supportRoute && (inventoryLoading || inventoryError)) return <AppLayout path={path}>
+  if (!supportRoute && (inventoryLoading || inventoryError)) return <AppLayout path={workspacePath}>
     <section className="surface">
       {inventoryLoading ? <LoadingState /> : <>
         <h2>Unable to load inventory</h2>
@@ -86,7 +92,7 @@ function AppRoutes() {
           Return to dashboard
         </a>
       </section>
-    ) : path === '/dashboard' ? (
+    ) : workspacePath === '/dashboard' ? (
       <Dashboard />
     ) : path === '/inventory' ? (
       <InventoryList />
@@ -127,5 +133,5 @@ function AppRoutes() {
     ) : (
       <NotFound />
     )
-  return <AppLayout path={path}><div key={path} className="page-transition">{view}</div></AppLayout>
+  return <AppLayout path={workspacePath}><div key={path} className="page-transition">{view}</div></AppLayout>
 }

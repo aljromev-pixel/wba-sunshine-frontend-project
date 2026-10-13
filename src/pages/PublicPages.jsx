@@ -3,7 +3,8 @@ import { BrandLogo } from '../components/BrandLogo'
 import { AsyncButton, FormError, FormField, useFormFeedback } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { ThemeToggle } from '../components/ThemeToggle'
-import { SunIcon } from '../components/BrandIcons'
+import { WbaEmblem } from '../components/BrandIcons'
+import { dashboardPath, savedPortal, signInPath } from '../utils/authPortal'
 
 export function Landing() {
   return <div className="public-page">
@@ -11,7 +12,8 @@ export function Landing() {
       <BrandLogo />
       <nav aria-label="Account navigation">
         <ThemeToggle />
-        <a className="public-back" href="#/sign-in">Sign in</a>
+        <a className="public-back" href="#/sign-in">Staff sign in</a>
+        <a className="public-back" href="#/admin/sign-in">Admin sign in</a>
       </nav>
     </header>
     <main id="main-content">
@@ -22,11 +24,12 @@ export function Landing() {
           <p>Bring your inventory, daily movements, and stock counts together in one connected workspace.</p>
           <div className="public-actions">
             <a className="button primary" href="#/sign-in">Sign in to your workspace →</a>
+            <a className="button public-secondary" href="#/admin/sign-in">Admin sign in</a>
           </div>
           <p className="public-caption">Accounts are created by your administrator. Contact them for access.</p>
         </div>
         <aside className="public-visual" aria-label="Inventory workflow overview">
-          <span className="public-orbit" aria-hidden="true"><SunIcon /></span>
+          <span className="public-orbit" aria-hidden="true"><WbaEmblem /></span>
           <p className="eyebrow">EVERY ITEM. EVERY MOVEMENT.</p>
           <h2>Clarity from arrival<br />to dispatch.</h2>
           <ol>
@@ -61,9 +64,14 @@ export function SetPassword() {
     pending.current = true
     setSubmitting(true)
     try {
-      await changePassword(details)
-      window.location.hash = '/dashboard'
-    } catch (exception) { feedback.handleError(exception) }
+      const authenticatedUser = await changePassword(details)
+      window.location.hash = dashboardPath(authenticatedUser)
+    } catch (exception) {
+      if (exception.data?.passwordChanged) {
+        await logout()
+        window.location.hash = `#${signInPath(savedPortal())}`
+      } else feedback.handleError(exception)
+    }
     finally { pending.current = false; setSubmitting(false) }
   }
   return <main className="login-page">

@@ -4,7 +4,7 @@ import { FormField, useFormFeedback, AsyncButton, FormError } from './Shared'
 import { ThemeToggle } from './ThemeToggle'
 import { BrandLogo } from './BrandLogo'
 
-export function Login() {
+export function Login({ portal = 'staff' }) {
   const { login, authError, canRetrySession, retrySession } = useApp()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -17,7 +17,7 @@ export function Login() {
     setError('')
     setSubmitting(true)
     try {
-      await login({ email, password })
+      await login({ email, password, portal })
     } catch (exception) {
       handleError(exception)
     } finally {
@@ -34,9 +34,9 @@ export function Login() {
       </section>
       <section className="login-card" aria-labelledby="login-heading">
         <div className="auth-actions"><ThemeToggle /></div>
-        <p className="eyebrow">WBA ACCESS</p>
-        <h2 id="login-heading">Sign in to your workspace</h2>
-        <p>Use your assigned email address and password to continue.</p>
+        <p className="eyebrow">{portal === 'admin' ? 'ADMIN ACCESS' : 'STAFF ACCESS'}</p>
+        <h2 id="login-heading">{portal === 'admin' ? 'Admin sign in' : 'Sign in to your workspace'}</h2>
+        <p>{portal === 'admin' ? 'For Administration Managers. Use your assigned administrator account.' : 'For Warehouse, Sales and Purchasing accounts, including managers and supervisors.'}</p>
         <form className="compact-form" onSubmit={submit}>
           <FormField name="email" feedback={feedback}>Email address<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" disabled={submitting} /></FormField>
           <FormField name="password" feedback={feedback}>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" disabled={submitting} /></FormField>
@@ -45,6 +45,7 @@ export function Login() {
           <AsyncButton className="button primary" loading={submitting} loadingLabel="Signing in…">Sign in</AsyncButton>
         </form>
         <p className="public-account-link">Need an account? Contact your administrator for access.</p>
+        <p className="public-account-link"><a href={portal === 'admin' ? '#/sign-in' : '#/admin/sign-in'}>{portal === 'admin' ? 'Use Staff sign in' : 'Use Admin sign in'}</a></p>
         <a className="public-back" href="#/">← Back to home</a>
       </section>
     </main>
