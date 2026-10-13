@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { FormField, useFormFeedback, AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { inventoryService } from '../services/inventoryService'
 import { daysUntil, fifoBatch, getBatchStatus, getStockStatus, today } from '../utils/inventoryLogic'
 import { PERMISSIONS } from '../utils/permissions'
+import { apiErrorMessage } from '../utils/apiErrors'
 
 const categories = ['All categories', 'Air Conditioners', 'Smart Home', 'Air Quality', 'Replacement Filters']
 const emptyProduct = { sku: '', name: '', category: '', stock: 0, reorderPoint: 0, capacity: '', supplier: '', leadTime: 0, unit: 'units', monthlySales: 0 }
@@ -21,6 +22,7 @@ function ProductForm({ initial, onClose, onSaved, notify, onBusyChange }) {
     onBusyChange(true)
     try {
       const payload = { ...form, stock: Number(form.stock), reorderPoint: Number(form.reorderPoint), capacity: form.capacity === '' ? null : Number(form.capacity), leadTime: Number(form.leadTime), monthlySales: Number(form.monthlySales) }
+      if (initial) delete payload.stock
       if (initial) await inventoryService.updateProduct(initial.id, payload)
       else await inventoryService.createProduct(payload)
       notify(`Product ${initial ? 'updated' : 'created'}.`)
@@ -34,7 +36,8 @@ function ProductForm({ initial, onClose, onSaved, notify, onBusyChange }) {
   }
   return <form className="surface compact-form" onSubmit={submit}>
     <div className="section-heading"><div><p className="eyebrow">{initial ? 'EDIT' : 'CREATE'}</p><h2>{initial ? 'Edit product' : 'Add product'}</h2></div><button type="button" className="inline-button" onClick={onClose} disabled={submitting}>Cancel</button></div>
-    <div className="form-grid">{[['sku', 'SKU'], ['name', 'Name'], ['category', 'Category'], ['supplier', 'Supplier'], ['unit', 'Unit'], ['stock', 'Starting stock', 'number'], ['reorderPoint', 'Reorder point', 'number'], ['capacity', 'Capacity', 'number'], ['leadTime', 'Lead time (days)', 'number'], ['monthlySales', 'Monthly sales', 'number']].map(([name, label, type = 'text']) => <FormField key={name} name={name} feedback={feedback}>{label}<input disabled={submitting} name={name} type={type} min={type === 'number' ? '0' : undefined} value={form[name]} onChange={(event) => setForm((current) => ({ ...current, [name]: event.target.value }))} required={name !== 'capacity' && name !== 'supplier'} /></FormField>)}</div>
+    <div className="form-grid">{[['sku', 'SKU'], ['name', 'Name'], ['category', 'Category'], ['supplier', 'Supplier'], ['unit', 'Unit'], ['stock', initial ? 'Current stock (read only)' : 'Starting stock', 'number'], ['reorderPoint', 'Reorder point', 'number'], ['capacity', 'Capacity', 'number'], ['leadTime', 'Lead time (days)', 'number'], ['monthlySales', 'Monthly sales', 'number']].map(([name, label, type = 'text']) => <FormField key={name} name={name} feedback={feedback}>{label}<input disabled={submitting} readOnly={Boolean(initial && name === 'stock')} name={name} type={type} min={type === 'number' ? '0' : undefined} value={form[name]} onChange={(event) => setForm((current) => ({ ...current, [name]: event.target.value }))} required={name !== 'capacity' && name !== 'supplier'} /></FormField>)}</div>
+    {initial && <p className="muted">Use stock movements or an approved batch count to change stock. Editing product details does not change quantities.</p>}
     <FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{initial ? 'Save product' : 'Create product'}</AsyncButton>
   </form>
 }
@@ -82,6 +85,7 @@ export function InventoryList() {
         <div className="form-actions"><span className="record-count">{items.length} products</span>{manage && <button className="button primary" disabled={saving} onClick={() => { setCreating(true); setEditing(null) }}>Add product</button>}</div>
       </div>
       {(creating || editing) && <ProductForm key={editing?.id || 'new'} onBusyChange={setSaving} initial={editing} notify={notify} onClose={() => { setCreating(false); setEditing(null) }} onSaved={() => { setCreating(false); setEditing(null) }} />}
+      {data.products.some(product => product.batchStock !== null && product.batchStock !== undefined && product.stock !== product.batchStock) && <p className="form-error" role="alert">Some product totals differ from batch allocations. Complete a verified batch count and adjustment review before recording further movements for those products.</p>}
       <section className="surface">
         <div className="filter-bar">
           <label className="search-field">
@@ -165,6 +169,15 @@ export function InventoryList() {
 }
 export function ProductDetails({ productId }) {
   const { data } = useApp()
+  const [activity, setActivity] = useState(null)
+  const [activityError, setActivityError] = useState('')
+  const [activityAttempt, setActivityAttempt] = useState(0)
+  useEffect(() => {
+    let active = true
+    setActivity(null); setActivityError('')
+    if (data.history?.transactions) inventoryService.productHistory(productId).then(records => { if (active) setActivity(records) }).catch(error => { if (active) setActivityError(apiErrorMessage(error)) })
+    return () => { active = false }
+  }, [productId, data.loadedAt, activityAttempt])
   const product = data.products.find((item) => item.id === productId)
   if (!product)
     return (
@@ -173,7 +186,7 @@ export function ProductDetails({ productId }) {
       </section>
     )
   const batches = data.batches.filter((item) => item.productId === product.id)
-  const movements = data.transactions.filter((item) => item.productId === product.id)
+  const movements = activity || data.transactions.filter((item) => item.productId === product.id)
   const fifo = fifoBatch(data.batches, product.id)
   return (
     <section className="page-stack">
@@ -194,7 +207,7 @@ export function ProductDetails({ productId }) {
         <article>
           <small>Current stock</small>
           <strong>{product.stock}</strong>
-          <span>{product.unit} available</span>
+          <span>{product.unit} on hand</span>
         </article>
         <article>
           <small>Reorder point</small>
@@ -204,7 +217,7 @@ export function ProductDetails({ productId }) {
         <article>
           <small>Storage capacity</small>
           <strong>{product.capacity}</strong>
-          <span>{Math.round((product.stock / product.capacity) * 100)}% utilized</span>
+          <span>{product.capacity > 0 ? `${Math.round((product.stock / product.capacity) * 100)}% utilized` : 'Capacity not set'}</span>
         </article>
         <article>
           <small>Average monthly sales</small>
@@ -244,7 +257,7 @@ export function ProductDetails({ productId }) {
                   <div>
                     <strong>{batch.number}</strong>
                     <small>
-                      Received {formatDate(batch.receivedAt)}{' '}
+                      {batch.location || 'Main warehouse'} · Received {formatDate(batch.receivedAt)}{' '}
                       {batch.expiresAt && `· Expires ${formatDate(batch.expiresAt)}`}
                     </small>
                   </div>
@@ -266,6 +279,8 @@ export function ProductDetails({ productId }) {
               <h2>Recent activity</h2>
             </div>
           </div>
+          {data.history?.transactions && activity === null && !activityError && <p role="status">Loading product activity…</p>}
+          {activityError && <div><FormError>{activityError}</FormError><button className="inline-button" onClick={() => setActivityAttempt(value => value + 1)}>Retry product activity</button></div>}
           {movements.length ? (
             <div className="compact-list">
               {movements.slice(0, 5).map((movement) => (
@@ -277,13 +292,14 @@ export function ProductDetails({ productId }) {
                     <small>
                       {movement.id} · {formatDate(movement.date, true)}
                     </small>
+                    <small>Stock {movement.stockBefore ?? 'not recorded'} → {movement.stockAfter ?? 'not recorded'} · {movement.sourceLocation || '—'} → {movement.destinationLocation || '—'}</small>
                   </div>
                   <StatusBadge>{movement.status}</StatusBadge>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyState title="No movements yet" />
+            (!data.history?.transactions || activity !== null) && !activityError && <EmptyState title="No movements yet" />
           )}
         </section>
       </div>
@@ -291,7 +307,7 @@ export function ProductDetails({ productId }) {
   )
 }
 function BatchForm({ initial, products, onClose, onSaved, notify, onBusyChange }) {
-  const [form, setForm] = useState(initial || { productId: products[0]?.id || '', number: '', quantity: 0, receivedAt: today(), expiresAt: '' })
+  const [form, setForm] = useState(initial || { productId: products[0]?.id || '', number: '', quantity: 0, receivedAt: today(), expiresAt: '', location: 'Main warehouse' })
   const feedback = useFormFeedback()
   const { error, setError, handleError } = feedback
   const [submitting, setSubmitting] = useState(false)
@@ -317,6 +333,8 @@ function BatchForm({ initial, products, onClose, onSaved, notify, onBusyChange }
   return <form className="surface compact-form" onSubmit={submit}>
     <div className="section-heading"><div><p className="eyebrow">{initial ? 'EDIT' : 'CREATE'}</p><h2>{initial ? 'Edit batch' : 'Add batch'}</h2></div><button type="button" className="inline-button" onClick={onClose} disabled={submitting}>Cancel</button></div>
     <div className="form-grid">{!initial && <FormField name="productId" feedback={feedback}>Product<select disabled={submitting} value={form.productId} onChange={(event) => setForm((current) => ({ ...current, productId: event.target.value }))}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></FormField>}<FormField name="number" feedback={feedback}>Batch number<input disabled={submitting} value={form.number} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} required /></FormField>{!initial && <FormField name="quantity" feedback={feedback}>Quantity<input disabled={submitting} type="number" min="0" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} required /></FormField>}<FormField name="receivedAt" feedback={feedback}>Received<input disabled={submitting} type="date" value={form.receivedAt} onChange={(event) => setForm((current) => ({ ...current, receivedAt: event.target.value }))} required /></FormField><FormField name="expiresAt" feedback={feedback}>Expiry<input disabled={submitting} type="date" value={form.expiresAt || ''} onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))} /></FormField></div>
+    <FormField name="location" feedback={feedback}>Storage location<input required disabled={submitting} readOnly={Boolean(initial)} value={form.location || 'Main warehouse'} maxLength={100} onChange={event => setForm(current => ({ ...current, location: event.target.value }))} /></FormField>
+    {initial && <p className="muted">Use Transfer to move quantities to another location.</p>}
     <FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{initial ? 'Save batch' : 'Create batch'}</AsyncButton>
   </form>
 }
@@ -388,6 +406,7 @@ export function Batches() {
                   <tr key={batch.id}>
                     <td>
                       <strong>{batch.number}</strong>
+                      <small>{batch.location || 'Main warehouse'}</small>
                     </td>
                     <td>
                       {product?.name}

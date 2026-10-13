@@ -23,7 +23,7 @@ const title = (path) =>
   nav.find((item) => item.href === path)?.label || (path.startsWith('/inventory/') ? 'Product Details' : 'Sunshine')
 
 export function AppLayout({ path, children }) {
-  const { user, can, logout, notice } = useApp()
+  const { user, can, logout, notice, data, retryInventory, inventoryLoading } = useApp()
   const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 900px)').matches)
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -126,6 +126,7 @@ export function AppLayout({ path, children }) {
             </button>
           </div>
         </header>
+        {data.loadedAt && <div className="form-actions"><small>Inventory snapshot: {new Date(data.loadedAt).toLocaleString(undefined, { timeZone: data.warehouseTimezone || 'Asia/Manila' })} · {data.warehouseTimezone || 'Asia/Manila'}</small><button type="button" className="inline-button" disabled={inventoryLoading} onClick={retryInventory}>Refresh inventory</button></div>}
         {notice && <div className={`toast ${notice.tone}`}>{notice.message}</div>}
         {children}
       </main>

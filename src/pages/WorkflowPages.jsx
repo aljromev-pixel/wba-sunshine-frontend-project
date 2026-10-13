@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { FormField, useFormFeedback, AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { inventoryService } from '../services/inventoryService'
-import { fifoBatch, getBatchStatus } from '../utils/inventoryLogic'
+import { fifoBatch, getBatchStatus, today } from '../utils/inventoryLogic'
 import { PERMISSIONS } from '../utils/permissions'
+import { HistoryMore } from '../components/HistoryMore'
 
 const config = {
   'Stock In': {
@@ -14,7 +15,7 @@ const config = {
     note: 'Use available stock only. The oldest valid FIFO batch is selected automatically when applicable.',
     action: 'Complete stock out',
   },
-  Transfer: { note: 'Record a controlled transfer movement within the warehouse workflow.', action: 'Record transfer' },
+  Transfer: { note: 'Move a batch between storage locations. The warehouse total remains unchanged.', action: 'Record transfer' },
   Return: { note: 'Return accepted stock to inventory after verification.', action: 'Process return' },
 }
 export function MovementForm({ type }) {
@@ -23,6 +24,11 @@ export function MovementForm({ type }) {
   const [batchId, setBatchId] = useState('')
   const [quantity, setQuantity] = useState('')
   const [reference, setReference] = useState('')
+  const [destinationLocation, setDestinationLocation] = useState('')
+  const [returnCondition, setReturnCondition] = useState('')
+  const [location, setLocation] = useState('Main warehouse')
+  const [batchNumber, setBatchNumber] = useState('')
+  const [expiresAt, setExpiresAt] = useState('')
   const feedback = useFormFeedback()
   const { error, setError, handleError } = feedback
   const [submitting, setSubmitting] = useState(false)
@@ -32,7 +38,7 @@ export function MovementForm({ type }) {
   const chooseProduct = (id) => {
     setProductId(id)
     const suggestion = fifoBatch(data.batches, id)
-    setBatchId(suggestion?.id || (type === 'Stock In' ? 'new' : ''))
+    setBatchId(type === 'Stock In' ? 'new' : suggestion?.id || '')
   }
   const submit = async (event) => {
     event.preventDefault()
@@ -40,12 +46,16 @@ export function MovementForm({ type }) {
     setError('')
     setSubmitting(true)
     try {
-      const transaction = await inventoryService.move({ type, productId, quantity, batchId, reference })
+      const transaction = await inventoryService.move({ type, productId, quantity, batchId, reference, destinationLocation, returnCondition, location, batchNumber, expiresAt })
       notify(`${type} recorded as ${transaction.id}.`)
       setProductId('')
       setBatchId('')
       setQuantity('')
       setReference('')
+      setDestinationLocation('')
+      setReturnCondition('')
+      setBatchNumber('')
+      setExpiresAt('')
     } catch (exception) {
       handleError(exception)
     } finally {
@@ -69,7 +79,7 @@ export function MovementForm({ type }) {
               <option value="">Select a product</option>
               {data.products.map((item) => (
                 <option value={item.id} key={item.id}>
-                  {item.name} — {item.stock} available
+                  {item.name} — {item.stock} on hand
                 </option>
               ))}
             </select>
@@ -93,7 +103,7 @@ export function MovementForm({ type }) {
                 <option value="new">Create receiving batch</option>
                 {batches.map((batch) => (
                   <option value={batch.id} key={batch.id}>
-                    {batch.number} — {batch.quantity} available
+                    {batch.number} · {batch.location || 'Main warehouse'} — {batch.quantity} available
                   </option>
                 ))}
               </select>
@@ -107,12 +117,19 @@ export function MovementForm({ type }) {
                 <option value="">Select a batch</option>
                 {batches.map((batch) => (
                   <option value={batch.id} key={batch.id} disabled={getBatchStatus(batch) === 'Expired'}>
-                    {batch.number} — {getBatchStatus(batch)}
+                    {batch.number} · {batch.location || 'Main warehouse'} — {getBatchStatus(batch)}
                   </option>
                 ))}
               </select>
             )}
           </FormField>
+          {type === 'Transfer' && <FormField name="destinationLocation" feedback={feedback}>Destination location<input required disabled={submitting} value={destinationLocation} maxLength={100} onChange={event => setDestinationLocation(event.target.value)} placeholder="For example, Rack B" /></FormField>}
+          {type === 'Return' && <FormField name="returnCondition" feedback={feedback}>Return condition<select required disabled={submitting} value={returnCondition} onChange={event => setReturnCondition(event.target.value)}><option value="">Verify condition</option><option value="Resaleable">Inspected and resaleable</option></select><small>Do not return damaged goods to usable stock. Record the inspection and original dispatch reference below.</small></FormField>}
+          {type === 'Stock In' && batchId === 'new' && <>
+            <FormField name="location" feedback={feedback}>Receiving location<input required disabled={submitting} value={location} maxLength={100} onChange={event => setLocation(event.target.value)} /></FormField>
+            <FormField name="batchNumber" feedback={feedback}>Receiving batch number (optional)<input disabled={submitting} value={batchNumber} maxLength={255} onChange={event => setBatchNumber(event.target.value)} placeholder="Generated automatically if omitted" /></FormField>
+            <FormField name="expiresAt" feedback={feedback}>Expiry date (optional)<input type="date" min={today()} disabled={submitting} value={expiresAt} onChange={event => setExpiresAt(event.target.value)} /></FormField>
+          </>}
           <FormField name="reference" feedback={feedback}>
             Reference / reason
             <input disabled={submitting}
@@ -126,7 +143,7 @@ export function MovementForm({ type }) {
         {product && (
           <div className="form-context">
             <span>
-              Available stock:{' '}
+              Stock on hand:{' '}
               <strong>
                 {product.stock} {product.unit}
               </strong>
@@ -148,25 +165,42 @@ export function MovementForm({ type }) {
     </section>
   )
 }
+const countBatches = (data, product) => {
+  if (!product) return []
+  const batches = data.batches.filter(batch => batch.productId === product.id)
+  const unallocated = product.stock - batches.reduce((sum, batch) => sum + batch.quantity, 0)
+  return unallocated > 0 || !batches.length ? [...batches, { id: '0', number: 'Unallocated opening stock', location: 'Main warehouse', quantity: Math.max(0, unallocated) }] : batches
+}
+const verifiedCounts = (batches, quantities, total) => batches.map(batch => ({ batchId: Number(batch.id), quantity: batches.length === 1 ? Number(total) : Number(quantities[batch.id] ?? (batch.quantity === 0 ? 0 : '')) }))
+function BatchCountFields({ batches, quantities, setQuantities, disabled }) {
+  return batches.length > 1 && <fieldset disabled={disabled} className="compact-form"><legend>Physical quantity in each batch and location</legend><div className="form-grid">{batches.map(batch => <label key={batch.id}>{batch.number} · {batch.location || 'Main warehouse'}<input type="number" min="0" step="1" required value={quantities[batch.id] ?? (batch.quantity === 0 ? '0' : '')} onChange={event => setQuantities(current => ({ ...current, [batch.id]: event.target.value }))} /></label>)}</div><p className="muted">Enter every physical count. Approval updates these batches and their product total together.</p></fieldset>
+}
+const countTotal = (batches, quantities) => batches.reduce((sum, batch) => sum + Number(quantities[batch.id] || 0), 0)
+
 export function CycleCount() {
   const { data, notify } = useApp()
   const [productId, setProductId] = useState(data.products[0]?.id || '')
   const [counted, setCounted] = useState('')
+  const [quantities, setQuantities] = useState({})
   const [submitted, setSubmitted] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const feedback = useFormFeedback()
   const { error, setError, handleError } = feedback
   const product = data.products.find((item) => item.id === productId) || data.products[0]
-  const variance = !product || counted === '' ? null : Number(counted) - product.stock
+  const batches = countBatches(data, product)
+  const total = batches.length > 1 ? countTotal(batches, quantities) : counted
+  const variance = !product || total === '' ? null : Number(total) - product.stock
   const submit = async (event) => {
     event.preventDefault()
-    if (submitting || !product || counted === '' || !Number.isInteger(Number(counted)) || Number(counted) < 0) return
+    if (submitting || !product || total === '' || !Number.isInteger(Number(total)) || Number(total) < 0) return
     setError('')
     setSubmitting(true)
-    const reason = `Cycle count: system ${product.stock}, counted ${counted}`
+    const reason = `Cycle count: system ${product.stock}, counted ${total}`
     try {
-      const request = await inventoryService.submitAdjustment({ productId: product.id, requestedQty: counted, reason })
+      const request = await inventoryService.submitAdjustment({ productId: product.id, requestedQty: total, reason, batchCounts: verifiedCounts(batches, quantities, total), expectedStockVersion: product.stockVersion })
       setSubmitted(request)
+      setCounted('')
+      setQuantities({})
       notify(`Cycle count submitted as ${request.id}; review is required.`)
     } catch (exception) {
       handleError(exception)
@@ -194,7 +228,8 @@ export function CycleCount() {
             value={product.id}
             onChange={(event) => {
               setProductId(event.target.value)
-              setCounted('')
+                setCounted('')
+                setQuantities({})
               setSubmitted(null)
             }}
           >
@@ -216,7 +251,8 @@ export function CycleCount() {
             <input disabled={submitting}
               type="number"
               min="0"
-              value={counted}
+              readOnly={batches.length > 1}
+              value={total}
               onChange={(event) => setCounted(event.target.value)}
               step="1"
               placeholder="Enter count"
@@ -230,6 +266,7 @@ export function CycleCount() {
             <span>{variance === null ? 'Awaiting count' : variance === 0 ? 'Matched' : 'Requires review'}</span>
           </article>
         </div>
+        <BatchCountFields batches={batches} quantities={quantities} setQuantities={setQuantities} disabled={submitting} />
         <div className="form-actions">
           <AsyncButton className="button primary" loading={submitting} loadingLabel="Submitting…">Submit count result</AsyncButton>
         </div>
@@ -247,6 +284,7 @@ export function Adjustments() {
   const { data, user, can, notify } = useApp()
   const [productId, setProductId] = useState('')
   const [requestedQty, setRequestedQty] = useState('')
+  const [quantities, setQuantities] = useState({})
   const [reason, setReason] = useState('')
   const feedback = useFormFeedback()
   const { error, setError, handleError } = feedback
@@ -255,17 +293,21 @@ export function Adjustments() {
   const [confirmation, setConfirmation] = useState(null)
   const approve = can(PERMISSIONS.ADJUSTMENT_APPROVE)
   const request = can(PERMISSIONS.ADJUSTMENT_REQUEST)
+  const product = data.products.find(item => item.id === productId)
+  const batches = countBatches(data, product)
+  const total = batches.length > 1 ? countTotal(batches, quantities) : requestedQty
   const submit = async (event) => {
     event.preventDefault()
     if (submitting) return
     setError('')
     setSubmitting(true)
     try {
-      const item = await inventoryService.submitAdjustment({ productId, requestedQty, reason })
+      const item = await inventoryService.submitAdjustment({ productId, requestedQty: total, reason, batchCounts: verifiedCounts(batches, quantities, total), expectedStockVersion: product?.stockVersion })
       notify(`Adjustment request ${item.id} submitted.`)
       setProductId('')
       setRequestedQty('')
       setReason('')
+      setQuantities({})
       setError('')
     } catch (exception) {
       handleError(exception)
@@ -304,7 +346,7 @@ export function Adjustments() {
           </div>
           <FormField name="productId" feedback={feedback}>
             Product
-            <select disabled={submitting} value={productId} onChange={(event) => setProductId(event.target.value)} required>
+            <select disabled={submitting} value={productId} onChange={(event) => { setProductId(event.target.value); setRequestedQty(''); setQuantities({}) }} required>
               <option value="">Select a product</option>
               {data.products.map((item) => (
                 <option value={item.id} key={item.id}>
@@ -318,11 +360,13 @@ export function Adjustments() {
             <input disabled={submitting}
               type="number"
               min="0"
-              value={requestedQty}
+              readOnly={batches.length > 1}
+              value={total}
               onChange={(event) => setRequestedQty(event.target.value)}
               required
             />
           </FormField>
+          <BatchCountFields batches={batches} quantities={quantities} setQuantities={setQuantities} disabled={submitting} />
           <FormField name="reason" feedback={feedback}>
             Reason
             <textarea disabled={submitting}
@@ -355,6 +399,7 @@ export function Adjustments() {
                       System {item.systemQty} → requested {item.requestedQty} · {item.requestedBy}
                     </small>
                     <small>{item.reason}</small>
+                    {item.batchCounts?.map(count => { const batch = data.batches.find(entry => entry.id === String(count.batchId)); return <small key={count.batchId}>{batch?.number || count.batchId} · {batch?.location || 'Main warehouse'}: verified {count.quantity}</small> })}
                   </div>
                   <div>
                     {item.status === 'Pending' && approve && item.requestedById !== String(user?.id) ? (
@@ -373,6 +418,7 @@ export function Adjustments() {
             })}
             {!data.adjustments.length && <EmptyState title="No adjustment requests" />}
           </div>
+          <HistoryMore section="adjustments" />
         </section>
       </div>
       {confirmation && <ConfirmDialog tone={confirmation.decision ? 'default' : 'danger'} title={`${confirmation.decision ? 'Approve' : 'Reject'} adjustment?`} message="This decision will be recorded in the audit trail." confirmLabel={confirmation.decision ? 'Approve' : 'Reject'} onCancel={() => setConfirmation(null)} onConfirm={() => review(confirmation.id, confirmation.decision)} />}
