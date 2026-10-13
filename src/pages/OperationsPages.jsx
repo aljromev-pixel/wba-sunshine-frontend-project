@@ -108,7 +108,7 @@ export function ReorderCalculator() {
   )
 }
 export function Reports() {
-  const { data, retryInventory } = useApp()
+  const { data } = useApp()
   const [type, setType] = useState(REPORT_TYPES[0])
   const [multiplier, setMultiplier] = useState('1')
   const [safetyPercent, setSafetyPercent] = useState('15')
@@ -145,9 +145,10 @@ export function Reports() {
     <section className="surface">
       <div className="filter-bar">
         <label>Report type<select value={type} onChange={(event) => setType(event.target.value)}>{REPORT_TYPES.map((name) => <option key={name}>{name}</option>)}</select></label>
-        <button className="inline-button" onClick={retryInventory}>Refresh report data</button>
+        <div className="toolbar-actions">
         <button className="button primary" disabled={!report || (historical && historyIncomplete)} onClick={() => window.print()}>Print report</button>
         <button className="inline-button" disabled={!report || (historical && historyIncomplete)} onClick={exportReport}>Export CSV</button>
+        </div>
       </div>
       {historical && <div className="form-grid compact-form"><label>From date<input type="date" value={from} onChange={event => setFrom(event.target.value)} /></label><label>To date<input type="date" value={to} onChange={event => setTo(event.target.value)} /></label></div>}
       <p className="muted">{historical ? `Period: ${from || 'all dates'} to ${to || 'latest'}. Dates use ${data.warehouseTimezone || 'Asia/Manila'}.` : 'Current snapshot; date filters do not reconstruct historical stock balances.'}</p>

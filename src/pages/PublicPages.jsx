@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { SunshineBrand } from '../components/Login'
+import { BrandLogo } from '../components/BrandLogo'
 import { AsyncButton, FormError, FormField, useFormFeedback } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { ThemeToggle } from '../components/ThemeToggle'
@@ -8,7 +8,7 @@ import { SunIcon } from '../components/BrandIcons'
 export function Landing() {
   return <div className="public-page">
     <header className="public-header">
-      <SunshineBrand />
+      <BrandLogo />
       <nav aria-label="Account navigation">
         <ThemeToggle />
         <a className="public-back" href="#/sign-in">Sign in</a>
@@ -17,7 +17,7 @@ export function Landing() {
     <main id="main-content">
       <section className="public-hero" aria-labelledby="home-heading">
         <div>
-          <p className="eyebrow">WALANGBROWNOUT APPLIANCES · SUNSHINE</p>
+          <p className="eyebrow">WALANGBROWNOUT APPLIANCES</p>
           <h1 id="home-heading">A brighter way to keep stock moving.</h1>
           <p>Bring your inventory, daily movements, and stock counts together in one connected workspace.</p>
           <div className="public-actions">
@@ -42,7 +42,7 @@ export function Landing() {
         <article><span aria-hidden="true">✓</span><h2>Access for your role</h2><p>Your assigned role determines the tools available in your workspace.</p></article>
       </section>
     </main>
-    <footer className="public-footer">Sunshine · Walangbrownout Appliances</footer>
+    <footer className="public-footer">WalangBrownout Appliances · Powered by Sunshine team</footer>
   </div>
 }
 
@@ -67,10 +67,10 @@ export function SetPassword() {
     finally { pending.current = false; setSubmitting(false) }
   }
   return <main className="login-page">
-    <section className="login-brand"><SunshineBrand /><p className="eyebrow">YOUR ACCOUNT, YOUR PASSWORD</p><h1>Make your workspace access your own.</h1><p>Your administrator has assigned your role. Set a private password before continuing.</p></section>
+    <section className="login-brand"><BrandLogo /><p className="eyebrow">YOUR ACCOUNT, YOUR PASSWORD</p><h1>Make your workspace access your own.</h1><p>Your administrator has assigned your role. Set a private password before continuing.</p></section>
     <section className="login-card" aria-labelledby="password-heading">
       <div className="auth-actions"><ThemeToggle /></div>
-      <p className="eyebrow">SUNSHINE ACCESS</p><h2 id="password-heading">Set your own password</h2>
+      <p className="eyebrow">WBA ACCESS</p><h2 id="password-heading">Set your own password</h2>
       <p>Replace the temporary password supplied by your administrator. Use at least 12 characters.</p>
       <form className="compact-form" onSubmit={submit}>
         {[['current_password', 'Temporary password'], ['password', 'New password'], ['password_confirmation', 'Confirm new password']].map(([name, label]) => <FormField key={name} name={name} feedback={feedback}>{label}<input type={visible ? 'text' : 'password'} value={details[name]} onChange={(event) => setDetails(current => ({ ...current, [name]: event.target.value }))} required minLength={name === 'current_password' ? undefined : 12} maxLength={255} autoComplete={name === 'current_password' ? 'current-password' : 'new-password'} disabled={submitting} /></FormField>)}

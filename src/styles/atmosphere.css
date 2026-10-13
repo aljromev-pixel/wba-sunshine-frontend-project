@@ -48,11 +48,11 @@
   .sidebar {
     z-index: 40;
     height: 100dvh;
-    overflow-y: auto;
+    overflow: hidden;
     overscroll-behavior-y: contain;
     padding-bottom: max(1.35rem, env(safe-area-inset-bottom));
   }
-  .sidebar nav { overflow: visible; flex-shrink: 0; }
+  .sidebar nav { overflow-y: auto; min-height: 0; flex: 1; }
   .sidebar .brand, .sidebar .profile { flex-shrink: 0; }
   .sidebar-close { display: flex; }
   .sidebar-open { transform: translateX(0); visibility: visible; }

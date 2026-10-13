@@ -10,24 +10,24 @@ export function Dashboard() {
   const content =
     user.department === 'Purchasing'
       ? {
-          label: 'Sunshine purchasing pulse',
+          label: 'WBA purchasing overview',
           title: 'Supply decisions, made clearer.',
           description: 'Review reorder exposure, supplier lead times, and seasonal demand before inventory runs short.',
         }
       : user.department === 'Sales'
         ? {
-            label: 'Sunshine availability pulse',
+          label: 'WBA stock availability',
             title: 'Reliable answers for every customer.',
             description: 'Check available inventory and recent outbound activity before committing stock.',
           }
         : user.department === 'Administration'
           ? {
-              label: 'Sunshine system pulse',
+              label: 'WBA inventory overview',
               title: 'A complete view of inventory control.',
               description: 'Monitor stock health, workflows, and traceable activity across the warehouse.',
             }
           : {
-              label: 'Sunshine warehouse pulse',
+              label: 'WBA warehouse overview',
               title: 'Keep every movement accountable.',
               description: 'Monitor stock health, batches, and discrepancies from one operational view.',
             }

@@ -2,15 +2,7 @@ import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { FormField, useFormFeedback, AsyncButton, FormError } from './Shared'
 import { ThemeToggle } from './ThemeToggle'
-import { SunIcon } from './BrandIcons'
-
-export function SunshineBrand() {
-  return <a className="sunshine-lockup" href="#/" aria-label="Sunshine home">
-    <span className="login-sun" aria-hidden="true"><SunIcon /></span>
-    <span className="brand-wordmark">Sun<span>shine</span></span>
-    <small>WALANGBROWNOUT APPLIANCES</small>
-  </a>
-}
+import { BrandLogo } from './BrandLogo'
 
 export function Login() {
   const { login, authError, canRetrySession, retrySession } = useApp()
@@ -35,14 +27,14 @@ export function Login() {
   return (
     <main className="login-page">
       <section className="login-brand">
-        <SunshineBrand />
+        <BrandLogo />
         <p className="eyebrow">POWERING INVENTORY CLARITY</p>
         <h1>Reliable stock control, brilliantly connected.</h1>
-        <p>Sunshine keeps every appliance, batch, and movement visible, accountable, and ready for the next demand.</p>
+        <p>WBA keeps every appliance, batch, and movement visible, accountable, and ready for the next demand.</p>
       </section>
       <section className="login-card" aria-labelledby="login-heading">
         <div className="auth-actions"><ThemeToggle /></div>
-        <p className="eyebrow">SUNSHINE ACCESS</p>
+        <p className="eyebrow">WBA ACCESS</p>
         <h2 id="login-heading">Sign in to your workspace</h2>
         <p>Use your assigned email address and password to continue.</p>
         <form className="compact-form" onSubmit={submit}>
