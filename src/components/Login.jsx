@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { useApp } from '../context/AppContext'
 import { FormField, useFormFeedback, AsyncButton, FormError } from './Shared'
 import { ThemeToggle } from './ThemeToggle'
+import { SunIcon } from './BrandIcons'
 
 export function SunshineBrand() {
   return <a className="sunshine-lockup" href="#/" aria-label="Sunshine home">
-    <span className="login-sun" aria-hidden="true">☼</span>
+    <span className="login-sun" aria-hidden="true"><SunIcon /></span>
     <span className="brand-wordmark">Sun<span>shine</span></span>
     <small>WALANGBROWNOUT APPLIANCES</small>
   </a>

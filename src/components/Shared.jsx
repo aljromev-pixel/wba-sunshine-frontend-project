@@ -1,6 +1,7 @@
 import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiErrorMessage } from '../utils/apiErrors'
+import { SunIcon } from './BrandIcons'
 
 export function useFormFeedback() {
   const [error, setMessage] = useState('')
@@ -40,10 +41,11 @@ export function StatusBadge({ children }) {
   const value = String(children).toLowerCase().replaceAll(' ', '-')
   return <span className={`status ${value}`}>{children}</span>
 }
-export function LoadingState() {
+export function LoadingState({ children = 'Loading workspace…', fullPage = false }) {
   return (
-    <div className="loading-state" role="status" aria-live="polite">
-      <span aria-hidden="true"></span>Loading workspace…
+    <div className={`loading-state${fullPage ? ' loading-screen' : ''}`} role="status" aria-live="polite">
+      <span className="loading-logo" aria-hidden="true"><SunIcon /></span>
+      <p>{children}</p>
     </div>
   )
 }
@@ -52,7 +54,7 @@ export function FormError({ children }) {
   return <p className="form-error" role="alert">{children}</p>
 }
 export function AsyncButton({ loading, children, loadingLabel = 'Saving…', ...props }) {
-  return <button {...props} aria-busy={loading || undefined} disabled={loading || props.disabled}>{loading && <span className="button-spinner" aria-hidden="true" />}{loading ? loadingLabel : children}</button>
+  return <button {...props} aria-busy={loading || undefined} disabled={loading || props.disabled}>{loading && <SunIcon className="sun-icon button-spinner" />}{loading ? loadingLabel : children}</button>
 }
 export function ConfirmDialog({ title = 'Confirm action', message, confirmLabel = 'Confirm', tone = 'default', onCancel, onConfirm }) {
   const titleId = useId()

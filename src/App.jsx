@@ -50,7 +50,7 @@ export default function App() {
   useEffect(() => {
     if (user && !user.mustChangePassword && ['/', '/sign-in', '/sign-up'].includes(path)) window.location.hash = '/dashboard'
   }, [user, path])
-  if (authLoading) return <section className="loading-state">Restoring your session…</section>
+  if (authLoading) return <LoadingState fullPage>Restoring your session…</LoadingState>
   if (!user) {
     if (path === '/' && !authError) return <Landing />
     return <Login />

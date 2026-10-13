@@ -3,6 +3,7 @@ import { SunshineBrand } from '../components/Login'
 import { AsyncButton, FormError, FormField, useFormFeedback } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { SunIcon } from '../components/BrandIcons'
 
 export function Landing() {
   return <div className="public-page">
@@ -25,7 +26,7 @@ export function Landing() {
           <p className="public-caption">Accounts are created by your administrator. Contact them for access.</p>
         </div>
         <aside className="public-visual" aria-label="Inventory workflow overview">
-          <span className="public-orbit" aria-hidden="true">☼</span>
+          <span className="public-orbit" aria-hidden="true"><SunIcon /></span>
           <p className="eyebrow">EVERY ITEM. EVERY MOVEMENT.</p>
           <h2>Clarity from arrival<br />to dispatch.</h2>
           <ol>
