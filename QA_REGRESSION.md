@@ -139,3 +139,35 @@ presentation code, and unknown-route fallback were resolved and retested above. 
 stock/batch reconciliation after adjustment approval and expiry enforcement remain
 domain follow-ups; this sign-off does not certify those business rules or the full
 production website.
+
+## Warehouse integrity follow-up — 2026-10-14
+
+The earlier stock/batch and expiry follow-ups above are now implemented locally.
+These results apply to the local warehouse-integrity changes, not the deployed service.
+
+| Check | Verification | Result |
+| --- | --- | --- |
+| Opening stock and metadata edits | Product opening stock gets a batch/ledger; editing metadata cannot overwrite quantity. | Pass |
+| Internal transfers | Source/destination location quantities change; warehouse total stays unchanged; same-location transfer is rejected. | Pass |
+| Verified counts | Every batch quantity is required; approval reconciles batch/product totals; intervening movement or metadata changes prevent stale approval. | Pass |
+| Uncertain write retries | Repeat movement/count requests reuse an identifier; no duplicate write; changed payload with the same identifier is rejected. | Pass |
+| Expiry | Backend rejects expired usable-stock movements and positive batch receipts; today is allowed; depleted expiry alerts are excluded. | Pass |
+| Access and sessions | Audit reads follow role permissions; non-reviewers see their own adjustments; the last active admin is protected; expired tokens are rejected. | Pass |
+| History and reports | Older records are paginated; reports load full permitted history; inclusive warehouse-date filters and CSV download/escaping pass. | Pass |
+| Refresh and mobile navigation | Saved writes can refresh without resubmission; inventory retry remains available; mobile sign-out is reachable. | Pass |
+| Production database recovery | No verified external backup or restore rehearsal; Supabase Free dashboard does not provide scheduled backups. | Blocked |
+| Hosted PostgreSQL and migration | New migration has not been deployed; PostgreSQL CI and hosted verification remain required. | Blocked |
+
+Final local backend suite: **90 tests, 454 assertions passed**. Calculation suite:
+**11 tests passed**. Browser regression and production Vite build passed. The live
+runner also passed against real Laravel with a disposable SQLite database,
+including persisted CRUD, all movement types, counts, review roles, and logout.
+The new warehouse regression tests cover stock-version changes even when the final quantity
+returns to its original value, legacy stock allocation, transfer-family expiry
+updates, and history snapshot boundaries. Browser failure tests use interception;
+they do not prove simultaneous PostgreSQL transaction behavior.
+
+Keep the database backup outside Git and test restoration into a separate database
+before deploying the stock-control migration. Existing pending counts from before
+the migration require rejection and a fresh submission. Production readiness is
+not signed off while recovery and hosted database checks remain blocked.

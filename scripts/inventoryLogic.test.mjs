@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { daysUntil, getBatchStatus, getStockStatus, today } from '../src/utils/inventoryLogic.js'
+import { daysUntil, getBatchStatus, getStockStatus, today, setWarehouseTimezone } from '../src/utils/inventoryLogic.js'
 
-test('expiry uses the local calendar date and the rolling 30-day boundary', () => {
+test('expiry uses the warehouse calendar date and the rolling 30-day boundary', () => {
   const RealDate = Date
-  const fixed = new RealDate(2030, 0, 15, 0, 30)
+  const fixed = new RealDate('2030-01-14T16:30:00Z')
+  setWarehouseTimezone('Asia/Manila')
   globalThis.Date = class extends RealDate {
     constructor(...args) { super(...(args.length ? args : [fixed.getTime()])) }
   }
@@ -24,7 +25,7 @@ test('expiry uses the local calendar date and the rolling 30-day boundary', () =
 
 test('calendar day differences remain whole days across daylight saving changes', () => {
   const RealDate = Date
-  const fixed = new RealDate(2030, 2, 9, 12)
+  const fixed = new RealDate('2030-03-09T04:00:00Z')
   globalThis.Date = class extends RealDate {
     constructor(...args) { super(...(args.length ? args : [fixed.getTime()])) }
   }

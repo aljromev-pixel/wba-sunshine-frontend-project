@@ -48,6 +48,12 @@ const vite = await createServer({ root, server: { host: '127.0.0.1', port: 5199,
 let browser
 const errors = []
 async function api(token, path, method = 'GET', body) {
+  if (method === 'POST' && path === '/inventory/adjustments' && !body.batchCounts) {
+    const snapshot = (await api(token, '/inventory')).data
+    const product = snapshot.products.find(item => item.id === body.productId)
+    const batches = snapshot.batches.filter(item => item.productId === body.productId)
+    body = { ...body, expectedStockVersion: product.stockVersion, batchCounts: batches.length ? batches.map((batch, index) => ({ batchId: batch.id, quantity: index === 0 ? body.requestedQty : 0 })) : [{ batchId: 0, quantity: body.requestedQty }] }
+  }
   const response = await fetch(`${apiBase}${path}`, { method, headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) })
   return { status: response.status, data: response.status === 204 ? null : await response.json() }
 }
@@ -153,13 +159,17 @@ try {
     await page.locator('select[name="batchId"]').selectOption(String(batch.id))
     await page.locator('input[name="quantity"]').fill(String(quantity))
     await page.locator('input[name="reference"]').fill(`QA ${path}`)
+    if (path === 'transfers') await page.locator('input[name="destinationLocation"]').fill('QA Rack B')
+    if (path === 'returns') await page.locator('select[name="returnCondition"]').selectOption('Resaleable')
     await page.getByRole('button', { name: button, exact: true }).click()
     await page.locator('select[name="productId"]').waitFor()
     await page.waitForFunction(() => document.querySelector('select[name="productId"]').value === '')
   }
-  assert.equal((await api(token, '/inventory')).data.transactions.length, 4)
+  assert.equal((await api(token, '/inventory')).data.transactions.length, 5)
+  assert.equal((await api(token, '/inventory')).data.products[0].stock, 12)
   await page.goto('http://127.0.0.1:5199/#/cycle-count')
-  await page.locator('input[name="requestedQty"]').fill('9')
+  const countSnapshot = (await api(token, '/inventory')).data
+  for (const entry of countSnapshot.batches) await page.getByLabel(`${entry.number} · ${entry.location}`, { exact: true }).fill(entry.id === batch.id ? '8' : '1')
   await page.getByRole('button', { name: 'Submit count result' }).click()
   await page.locator('.success-note').waitFor()
   const adjustment = (await api(token, '/inventory')).data.adjustments[0]
@@ -189,7 +199,7 @@ try {
     assert.equal((await api(login.data.token, `/products/${targetId}`, 'DELETE')).status, manage ? 204 : 403)
     for (const type of ['Stock In','Stock Out','Transfer','Return']) {
       const allowed = department === 'Warehouse' || department === 'Administration' || (department === 'Sales' && type === 'Stock Out')
-      assert.equal((await api(login.data.token, '/inventory/movements', 'POST', { type, productId: product.id, batchId: batch.id, quantity: 1, reference: 'QA matrix' })).status, allowed ? 201 : 403)
+      assert.equal((await api(login.data.token, '/inventory/movements', 'POST', { type, productId: product.id, batchId: batch.id, quantity: 1, reference: 'QA matrix', ...(type === 'Transfer' ? { destinationLocation: 'QA Rack B' } : {}), ...(type === 'Return' ? { returnCondition: 'Resaleable' } : {}) })).status, allowed ? 201 : 403)
     }
     assert.equal((await api(login.data.token, '/inventory/adjustments', 'POST', { productId: product.id, requestedQty: 9, reason: 'QA request matrix' })).status, ['Warehouse','Administration'].includes(department) ? 201 : 403)
     if (department !== 'Administration') assert.equal((await api(login.data.token, '/users')).status, 403)

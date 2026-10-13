@@ -1,5 +1,6 @@
 import { createServer } from 'vite';
 import { fileURLToPath } from 'node:url';
+import { readFile } from 'node:fs/promises';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const { chromium } = await import(process.env.QA_PLAYWRIGHT_MODULE || 'playwright');
 const assert = (await import('node:assert/strict')).default;
@@ -351,6 +352,7 @@ try{
  for(const viewport of [{width:390,height:640},{width:320,height:480},{width:844,height:390}]){
   await mobileLogout.setViewportSize(viewport);
   await mobileLogout.getByRole('button',{name:'Open navigation',exact:true}).click();
+  await mobileLogout.waitForFunction(()=>document.getElementById('workspace-navigation').getBoundingClientRect().left>=-0.5);
   const menu=mobileLogout.locator('#workspace-navigation');
   const box=await menu.boundingBox();
   assert.ok(box.height<=viewport.height+1,'Mobile sidebar must fit the visible viewport');
@@ -371,6 +373,49 @@ try{
  }
  assert.equal(mobileLogouts,1,'The reachable sign-out control must log out once');
  console.log('Mobile portrait, narrow and landscape sidebar scrolling and sign-out passed.');
+ const retryIds=[];
+ const uncertain=await makePage(({route,path,method,json})=>{
+  if(method==='POST'&&path.endsWith('/inventory/movements')){
+   retryIds.push(route.request().postDataJSON().requestId);
+   return retryIds.length===1?route.abort('connectionrefused'):json(201,{data:{id:'QA-SAFE-RETRY'}});
+  }
+  return json(200,path.endsWith('/auth/me')?{user}:inventory);
+ });
+ await uncertain.goto('http://127.0.0.1:5197/#/stock-in');
+ await uncertain.locator('select[name="productId"]').selectOption('1');
+ await uncertain.locator('input[name="quantity"]').fill('2');
+ await uncertain.locator('input[name="reference"]').fill('QA uncertain response');
+ await uncertain.getByRole('button',{name:'Record stock in',exact:true}).click();
+ await uncertain.getByRole('alert').filter({hasText:'The change may have saved.'}).waitFor();
+ await uncertain.getByRole('button',{name:'Record stock in',exact:true}).click();
+ await uncertain.waitForFunction(()=>document.querySelector('select[name="productId"]').value==='');
+ assert.equal(retryIds.length,2);assert.ok(retryIds[0]);assert.equal(retryIds[0],retryIds[1]);
+ const countedPayloads=[];
+ const multiCount=await makePage(({route,path,method,json})=>{
+  if(method==='POST'&&path.endsWith('/inventory/adjustments')){countedPayloads.push(route.request().postDataJSON());return json(201,{data:{id:'COUNT-SAFE'}});}
+  return json(200,path.endsWith('/auth/me')?{user}:{...inventory,products:[{...products[0],stock:4,stockVersion:7}],batches:[{id:1,productId:1,number:'QA-A',location:'Main warehouse',quantity:2,receivedAt:'2030-01-01'},{id:2,productId:1,number:'QA-B',location:'Rack B',quantity:2,receivedAt:'2030-01-01'}]});
+ });
+ await multiCount.goto('http://127.0.0.1:5197/#/cycle-count');
+ await multiCount.getByRole('button',{name:'Submit count result'}).click();assert.equal(countedPayloads.length,0);
+ await multiCount.getByLabel('QA-A · Main warehouse',{exact:true}).fill('1');
+ await multiCount.getByLabel('QA-B · Rack B',{exact:true}).fill('2');
+ await multiCount.getByRole('button',{name:'Submit count result'}).click();await multiCount.locator('.success-note').waitFor();
+ assert.equal(countedPayloads[0].requestedQty,3);assert.equal(countedPayloads[0].expectedStockVersion,7);
+ assert.deepEqual(countedPayloads[0].batchCounts,[{batchId:1,quantity:1},{batchId:2,quantity:2}]);
+ let historyLoads=0;
+ const pagedReports=await makePage(({path,json})=>{
+  if(path.includes('/inventory/history/transactions')){historyLoads++;return json(200,{data:Array.from({length:100},(_,index)=>({id:index+1,productId:1,type:'Stock Out',quantity:1,date:'2030-01-14T12:00:00Z',reference:'QA older',status:'Completed'})),meta:{current_page:2,last_page:2,total:101}});}
+  return json(200,path.endsWith('/auth/me')?{user}:{...inventory,transactions:[{id:101,productId:1,type:'Stock Out',quantity:1,date:'2030-01-15T12:00:00Z',reference:'QA recent',status:'Completed',stockBefore:3,stockAfter:2}],history:{transactions:{total:101,throughId:101,nextPage:2},adjustments:{total:0,throughId:0,nextPage:null}}});
+ });
+ await pagedReports.goto('http://127.0.0.1:5197/#/reports');
+ await pagedReports.getByLabel('Report type').selectOption('Stock Movement Report');
+ await pagedReports.waitForFunction(()=>document.querySelectorAll('tbody tr').length===101);assert.equal(historyLoads,1);
+ await pagedReports.getByLabel('From date',{exact:true}).fill('2030-01-15');await pagedReports.getByLabel('To date',{exact:true}).fill('2030-01-15');
+ await pagedReports.waitForFunction(()=>document.querySelectorAll('tbody tr').length===1);
+ const csvDownload=pagedReports.waitForEvent('download');await pagedReports.getByRole('button',{name:'Export CSV',exact:true}).click();
+ const downloaded=await csvDownload;const csv=await readFile(await downloaded.path(),'utf8');
+ assert.ok(csv.includes('QA recent'));assert.ok(!csv.includes('QA older'));assert.ok(csv.includes('Stock before'));
+ console.log('Lost-response retry identifiers, required batch counts, complete paged reports, date filters and CSV download passed.');
  console.log('Page/dialog entrance, reduced-motion fallback, keyboard cancellation and pending-button progress passed.');
  console.log('Light/dark theme, system preference, stored choice after refresh, keyboard toggle, storage fallback, dialog contrast in both modes and responsive workspace passed.');
  console.log('Unknown routes, API-backed reorder defaults, empty calculator, API alerts, and theme checks passed.');

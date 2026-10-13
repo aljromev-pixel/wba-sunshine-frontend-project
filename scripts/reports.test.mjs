@@ -1,6 +1,21 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { buildReport, REPORT_TYPES } from '../src/utils/reports.js'
+import { buildReport, filterReportDates, reportCsv, REPORT_TYPES } from '../src/utils/reports.js'
+
+test('report dates are inclusive warehouse calendar dates without changing source records', () => {
+  const snapshot = { transactions: [{ id: 1, date: '2030-01-14T16:01:00Z' }, { id: 2, date: '2030-01-15T16:00:00Z' }], adjustments: [{ id: 3, date: '2030-01-15' }] }
+  const filtered = filterReportDates(snapshot, '2030-01-15', '2030-01-15')
+  assert.deepEqual(filtered.transactions.map(item => item.id), [1])
+  assert.equal(filtered.adjustments.length, 1)
+  assert.equal(snapshot.transactions.length, 2)
+})
+
+test('CSV escapes quotes and spreadsheet formulas while preserving numeric variances', () => {
+  const csv = reportCsv({ columns: ['Product', 'Variance'], rows: [{ values: ['=SUM(1,2)', -3] }, { values: ['Air "quality"', 0] }] })
+  assert.ok(csv.includes('"\'=SUM(1,2)"'))
+  assert.ok(csv.includes('"Air ""quality"""'))
+  assert.ok(csv.includes('"-3"'))
+})
 
 const data = {
   products: [
@@ -9,7 +24,7 @@ const data = {
     { id: '3', sku: 'C', name: 'Gamma', stock: 20, reorderPoint: 10, capacity: 100, monthlySales: 0, leadTime: 0 },
   ],
   batches: [],
-  transactions: [{ id: 'm1', reference: 'SO-1', productId: 1, type: 'Stock Out', quantity: 3, date: '2030-01-15T12:00:00Z', status: 'Completed' }],
+  transactions: [{ id: 'm1', reference: 'SO-1', productId: 1, type: 'Stock Out', quantity: 3, date: '2030-01-15T12:00:00Z', status: 'Completed', stockBefore: 8, stockAfter: 5, sourceLocation: 'Main warehouse', destinationLocation: null }],
   adjustments: [
     { id: 'a1', productId: 1, systemQty: 10, requestedQty: 8, reason: 'Cycle count: system 10, counted 8', status: 'Approved' },
     { id: 'a2', productId: 1, systemQty: 10, requestedQty: 10, reason: 'Cycle count: system 10, counted 10', status: 'Pending' },
@@ -19,7 +34,7 @@ const data = {
 
 test('inventory and movement reports retain API values, references and product identity', () => {
   assert.deepEqual(buildReport('Inventory Summary', data).rows[0].values, ['A', 'Alpha', 5, 10, 'Low stock'])
-  assert.deepEqual(buildReport('Stock Movement Report', data).rows[0].values, ['m1', 'SO-1', 'Alpha', 'Stock Out', 3, '2030-01-15T12:00:00Z', 'Completed'])
+  assert.deepEqual(buildReport('Stock Movement Report', data).rows[0].values, ['m1', 'SO-1', 'Alpha', 'Stock Out', 3, '2030-01-15T12:00:00Z', 'Completed', 8, 5, 'Main warehouse', null])
   const refreshed = { ...data, products: data.products.map((product) => ({ ...product, stock: 99 })) }
   assert.equal(buildReport('Inventory Summary', refreshed).rows[0].values[2], 99)
 })
@@ -40,7 +55,7 @@ test('discrepancies use recorded stock, cycle count follows its saved reason con
 test('expiring report includes today and day 30 but excludes expired, distant, depleted and undated batches', () => {
   const RealDate = Date
   globalThis.Date = class extends RealDate {
-    constructor(...args) { super(...(args.length ? args : [new RealDate(2030, 0, 15, 12).getTime()])) }
+    constructor(...args) { super(...(args.length ? args : [new RealDate('2030-01-15T04:00:00Z').getTime()])) }
   }
   try {
     const batches = ['2030-01-14', '2030-01-15', '2030-02-14', '2030-02-15', null, '2030-01-16']
