@@ -159,3 +159,44 @@ database. These are local QA workflows and are separate from the CI compilation 
 - Lead Developers, Database, ERD, Data Models: Suan, Christopher B.; Vasquez, Aljrome A.
 - DevOps / Architecture, DFD, Business Rules: Vecina, Aryana C.; Zarate, Christopher M.
 - QA, Validation, Testing Scenarios: Tinasas, Shiela Mae C.
+
+## Admin/Staff portals and final QA — 14 October 2026
+
+Administration Managers use `#/admin/sign-in`; Warehouse, Sales and Purchasing
+accounts, including their managers/supervisors, use `#/sign-in`. Correct credentials
+on the wrong portal return HTTP 403 with a useful portal message. Successful login
+opens the matching Admin or Staff dashboard. Role-specific shared modules retain
+the existing permission matrix. Switching portals clears entered credentials;
+logout, expired sessions and opposite-dashboard access are regression-tested.
+
+Supabase Auth is prepared in the backend as a controlled migration. The frontend
+continues to call Laravel and receives only a portal-approved bearer token and
+profile. It never receives a service key or refresh token. Server configuration,
+verified backups, password-hash import and hosted smoke tests are required before
+cutover. See the backend deployment guide. Sunny remains local and excluded.
+
+Final local verification used a production build with all Sunny files/imports
+removed: both browser QA suites passed, plus 132 axe-core 4.14.0 WCAG 2.2 AA
+checks across 22 routes, light/dark modes and 320/390/1440px widths. There were zero
+automated accessibility violations, page overflows or browser exceptions.
+Keyboard dialogs, navigation, theme controls and horizontal table regions are
+covered by the browser regressions. These checks do not certify complete manual
+WCAG conformance or physical-device/hosted behavior.
+
+Lighthouse 13.5.0 public home and both login pages scored 100 for accessibility,
+best practices and SEO; desktop performance was 100. Mobile performance was
+96–98 in the final run. Two mobile audits reported cache-clearing timeouts; treat
+performance as a local measurement rather than a hosted guarantee.
+
+The logo uses self-contained italic serif SVG lettering inspired by the supplied
+reference, without an external font dependency. The emblem, startup/session
+loaders, favicon and downloadable logo share those outlines. Accessibility fixes
+include matching visible/accessibility names, labelled filters, focusable scroll
+regions and a visible table focus ring. A meta description and valid robots.txt
+complete the public build metadata.
+
+`npm audit` still reports the high-severity source-map-js 1.2.1 advisory
+[GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q).
+This transitive build dependency was deliberately left unchanged at the project
+owner's request. It remains an open release item; successful builds are not a
+clean dependency-security audit.
