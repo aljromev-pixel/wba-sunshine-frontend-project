@@ -1,4 +1,23 @@
-import { calculateReorder, daysUntil, getStockStatus } from './inventoryLogic.js'
+import { calculateReorder, daysUntil, getStockStatus, warehouseDate } from './inventoryLogic.js'
+
+export function filterReportDates(data, from = '', to = '') {
+  const matches = item => {
+    if (!from && !to) return true
+    if (!item.date) return false
+    const day = item.date.includes('T') ? warehouseDate(item.date) : item.date
+    return (!from || day >= from) && (!to || day <= to)
+  }
+  return { ...data, transactions: data.transactions.filter(matches), adjustments: data.adjustments.filter(matches) }
+}
+
+export function reportCsv(report) {
+  const cell = value => {
+    let text = String(value ?? '')
+    if (typeof value === 'string' && /^\s*[=+\-@]/.test(text)) text = `'${text}`
+    return `"${text.replaceAll('"', '""')}"`
+  }
+  return '\uFEFF' + [report.columns, ...report.rows.map(row => row.values)].map(row => row.map(cell).join(',')).join('\r\n')
+}
 
 export const REPORT_TYPES = [
   'Inventory Summary', 'Stock Movement Report', 'Low Stock Report',
@@ -27,8 +46,8 @@ export function buildReport(type, data, { multiplier = 1, safetyPercent = 15 } =
     case 'Stock Movement Report':
       return {
         description: 'All movement records in the inventory snapshot. Quantities are recorded units; direction is identified by movement type.',
-        columns: ['Movement', 'Reference', 'Product', 'Type', 'Quantity', 'Recorded at', 'Status'],
-        rows: data.transactions.map((item) => row(item, [item.id, item.reference, productName(item.productId), item.type, item.quantity, item.date, item.status])),
+        columns: ['Movement', 'Reference', 'Product', 'Type', 'Quantity', 'Recorded at', 'Status', 'Stock before', 'Stock after', 'From location', 'To location'],
+        rows: data.transactions.map((item) => row(item, [item.id, item.reference, productName(item.productId), item.type, item.quantity, item.date, item.status, item.stockBefore ?? 'Not recorded', item.stockAfter ?? 'Not recorded', item.sourceLocation, item.destinationLocation])),
       }
     case 'Low Stock Report':
       return {

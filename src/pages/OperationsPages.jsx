@@ -2,10 +2,12 @@ import { roleLevelsForDepartment } from '../utils/permissions'
 import { useEffect, useState } from 'react'
 import { FormField, useFormFeedback, AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
+import { HistoryMore } from '../components/HistoryMore'
+import { inventoryService } from '../services/inventoryService'
 import { userService } from '../services/userService'
 import { apiErrorMessage } from '../utils/apiErrors'
 import { calculateReorder } from '../utils/inventoryLogic'
-import { buildReport, REPORT_TYPES } from '../utils/reports'
+import { buildReport, filterReportDates, reportCsv, REPORT_TYPES } from '../utils/reports'
 
 export function ReorderCalculator() {
   const { data } = useApp()
@@ -102,9 +104,30 @@ export function Reports() {
   const [type, setType] = useState(REPORT_TYPES[0])
   const [multiplier, setMultiplier] = useState('1')
   const [safetyPercent, setSafetyPercent] = useState('15')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [historyError, setHistoryError] = useState('')
+  const historical = ['Stock Movement Report', 'Inventory Discrepancy Report', 'Cycle Count Report', 'Adjustment Report'].includes(type)
+  const historyIncomplete = Boolean(data.history?.transactions?.nextPage || data.history?.adjustments?.nextPage)
+  const loadHistory = async () => {
+    if (loadingHistory) return
+    setLoadingHistory(true); setHistoryError('')
+    try { await inventoryService.loadReportHistory() } catch (exception) { setHistoryError(apiErrorMessage(exception)) }
+    finally { setLoadingHistory(false) }
+  }
+  useEffect(() => { loadHistory() }, [])
   const seasonal = type === 'Seasonal Reorder Report'
   const valid = !seasonal || (multiplier !== '' && safetyPercent !== '' && Number.isFinite(Number(multiplier)) && Number(multiplier) >= 0 && Number(multiplier) <= 100 && Number.isFinite(Number(safetyPercent)) && Number(safetyPercent) >= 0 && Number(safetyPercent) <= 100)
-  const report = valid ? buildReport(type, data, { multiplier: Number(multiplier), safetyPercent: Number(safetyPercent) }) : null
+  const datesValid = !historical || !from || !to || from <= to
+  const report = valid && datesValid ? buildReport(type, historical ? filterReportDates(data, from, to) : data, { multiplier: Number(multiplier), safetyPercent: Number(safetyPercent) }) : null
+  const exportReport = () => {
+    const url = URL.createObjectURL(new Blob([reportCsv(report)], { type: 'text/csv;charset=utf-8' }))
+    const anchor = document.createElement('a')
+    anchor.href = url; anchor.download = `${type.toLowerCase().replaceAll(' ', '-')}.csv`
+    document.body.appendChild(anchor); anchor.click(); anchor.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
   return <section className="page-stack">
     <div className="page-intro"><div>
       <p className="eyebrow">MANAGEMENT REPORTING</p>
@@ -115,14 +138,19 @@ export function Reports() {
       <div className="filter-bar">
         <label>Report type<select value={type} onChange={(event) => setType(event.target.value)}>{REPORT_TYPES.map((name) => <option key={name}>{name}</option>)}</select></label>
         <button className="inline-button" onClick={retryInventory}>Refresh report data</button>
-        <button className="button primary" disabled={!valid} onClick={() => window.print()}>Print report</button>
+        <button className="button primary" disabled={!report || (historical && historyIncomplete)} onClick={() => window.print()}>Print report</button>
+        <button className="inline-button" disabled={!report || (historical && historyIncomplete)} onClick={exportReport}>Export CSV</button>
       </div>
+      {historical && <div className="form-grid compact-form"><label>From date<input type="date" value={from} onChange={event => setFrom(event.target.value)} /></label><label>To date<input type="date" value={to} onChange={event => setTo(event.target.value)} /></label></div>}
+      <p className="muted">{historical ? `Period: ${from || 'all dates'} to ${to || 'latest'}. Dates use ${data.warehouseTimezone || 'Asia/Manila'}.` : 'Current snapshot; date filters do not reconstruct historical stock balances.'}</p>
+      {historyIncomplete && <div><p>Some history has not loaded. Complete history is required before exporting or printing a historical report.</p><AsyncButton className="inline-button" loading={loadingHistory} onClick={loadHistory}>Load complete report history</AsyncButton></div>}
+      <FormError>{historyError}</FormError>
       {seasonal && <div className="form-grid compact-form">
         <label>Demand multiplier<input type="number" min="0" max="100" step="0.1" value={multiplier} onChange={(event) => setMultiplier(event.target.value)} /></label>
         <label>Safety stock percent<input type="number" min="0" max="100" value={safetyPercent} onChange={(event) => setSafetyPercent(event.target.value)} /></label>
       </div>}
       <h3 className="report-title">{type}</h3>
-      {!valid ? <FormError>Enter a demand multiplier and safety percentage between 0 and 100.</FormError> : <>
+      {!valid ? <FormError>Enter a demand multiplier and safety percentage between 0 and 100.</FormError> : !datesValid ? <FormError>The end date must be on or after the start date.</FormError> : <>
         <p>{report.description}</p>
         <div className="table-wrap"><table>
           <thead><tr>{report.columns.map((column) => <th key={column} scope="col">{column}</th>)}</tr></thead>
@@ -192,6 +220,7 @@ export function AuditTrail() {
           </table>
           {!rows.length && <EmptyState title="No audit records found" />}
         </div>
+        <HistoryMore section="audit" />
       </section>
     </section>
   )
