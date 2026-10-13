@@ -416,6 +416,49 @@ try{
  const downloaded=await csvDownload;const csv=await readFile(await downloaded.path(),'utf8');
  assert.ok(csv.includes('QA recent'));assert.ok(!csv.includes('QA older'));assert.ok(csv.includes('Stock before'));
  console.log('Lost-response retry identifiers, required batch counts, complete paged reports, date filters and CSV download passed.');
+ let trashRestores=0;let deletedRows=[{id:90,name:'Archived appliance',reference:'ARCHIVE-90',deletedAt:'2030-01-10T12:00:00Z',deletedBy:'QA Administrator'}];
+ const trash=await makePage(async({route,path,method,json})=>{
+  if(path.endsWith('/trash'))return json(200,{data:deletedRows,current_page:1,last_page:1});
+  if(path.includes('/trash/products/90/restore')){trashRestores++;await new Promise(resolve=>setTimeout(resolve,1000));deletedRows=[];return json(200,{message:'Record restored.'});}
+  return json(200,path.endsWith('/auth/me')?{user}:inventory);
+ });
+ await trash.setViewportSize({width:320,height:640});await trash.goto('http://127.0.0.1:5197/#/trash');await trash.getByRole('heading',{name:'Archived appliance'}).waitFor();
+ await trash.getByRole('button',{name:'Restore',exact:true}).click();await trash.getByRole('dialog').waitFor();await trash.keyboard.press('Escape');assert.equal(trashRestores,0);
+ await trash.getByRole('button',{name:'Restore',exact:true}).click();await trash.getByRole('button',{name:'Restore record',exact:true}).click();
+ assert.ok(await trash.getByRole('button',{name:'Processing…',exact:true}).isDisabled());
+ await trash.getByRole('heading',{name:'Trash is empty'}).waitFor();assert.equal(trashRestores,1);
+ const noticeRows=[{id:'qa-notice',title:'Stock Out: Air conditioner',message:'A very important dispatch from Rack B. On hand: 10; usable: 3.',severity:'High',date:'2030-01-15T12:00:00Z',link:'/inventory/1',readAt:null}];
+ let noticeReads=0;
+ const notices=await makePage(({path,method,json})=>{
+  if(path.endsWith('/notifications')&&method==='GET')return json(200,{data:noticeRows,meta:{current_page:1,last_page:1},unreadCount:noticeRows[0].readAt?0:1});
+  if(path.endsWith('/read')&&method==='POST'){noticeReads++;noticeRows[0].readAt='2030-01-15T12:01:00Z';return json(200,{unreadCount:0});}
+  return json(200,path.endsWith('/auth/me')?{user}:{...inventory,notificationSummary:{unreadCount:noticeRows[0].readAt?0:1}});
+ });
+ await notices.setViewportSize({width:320,height:640});await notices.goto('http://127.0.0.1:5197/#/notifications');await notices.getByRole('heading',{name:'Stock Out: Air conditioner'}).waitFor();
+ await notices.getByRole('button',{name:'Mark as read',exact:true}).click();await notices.getByLabel('Notifications, 0 unread',{exact:true}).waitFor();assert.equal(noticeReads,1);
+ await notices.reload();await notices.getByRole('heading',{name:'Stock Out: Air conditioner'}).waitFor();assert.equal(await notices.getByRole('button',{name:'Mark as read',exact:true}).count(),0);
+ for(const viewport of [{width:1440,height:900},{width:390,height:640},{width:320,height:480},{width:844,height:390}]){
+  for(const surface of [trash,notices]){await surface.setViewportSize(viewport);assert.ok(await surface.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Recovery and notification pages must fit viewport');}
+ }
+ await notices.getByRole('button',{name:'Dark mode',exact:true}).click();assert.equal(await notices.locator('html').getAttribute('data-theme'),'dark');
+ const restrictedTrash=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user:{...user,department:'Warehouse',roleLevel:'Staff'}}:inventory));
+ await restrictedTrash.goto('http://127.0.0.1:5197/#/trash');await restrictedTrash.getByRole('heading',{name:'This module is not part of your assigned workspace.'}).waitFor();
+ let backgroundLoads=0;
+ const updates=await makePage(({path,json})=>{if(path.endsWith('/inventory'))backgroundLoads++;return json(200,path.endsWith('/auth/me')?{user}:{...inventory,loadedAt:'2030-01-15T12:00:00Z',notificationSummary:{unreadCount:backgroundLoads}});});
+ await updates.clock.install();await updates.goto('http://127.0.0.1:5197/#/dashboard');await updates.getByRole('heading',{name:'Stock health distribution'}).waitFor();
+ const firstLoads=backgroundLoads;await updates.clock.fastForward(31000);await updates.waitForFunction(count=>document.querySelector('.notification-count')?.textContent===String(count),firstLoads+1);
+ await updates.goto('http://127.0.0.1:5197/#/stock-in');await updates.getByRole('heading',{name:'Stock In transaction'}).waitFor();const formLoads=backgroundLoads;await updates.clock.fastForward(31000);assert.equal(backgroundLoads,formLoads,'Background refresh must pause while a form is open');
+ const recordedMonth=new Date(Date.UTC(new Date().getUTCFullYear(),new Date().getUTCMonth()-1,1)).toISOString().slice(0,7);
+ const planningInventory={...inventory,products:[{...products[0],stock:10,usableStock:3,reorderPoint:4,demandPattern:'Seasonal-Critical',monthlySalesHistory:[{month:recordedMonth,quantity:60}],seasonalProfile:[{month:6,multiplier:2}]}],batches:[{id:1,productId:1,number:'EXPIRY-QA',location:'Rack B',quantity:3,receivedAt:'2026-01-01',expiresAt:'2099-01-01'}],transactions:[{id:1,productId:1,type:'Transfer',quantity:2,stockBefore:10,stockAfter:10,date:'2030-01-15T12:00:00Z'},{id:2,productId:1,type:'Adjustment',quantity:3,stockBefore:7,stockAfter:10,date:'2030-01-15T12:00:00Z'}]};
+ const planning=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user}:planningInventory));
+ await planning.setViewportSize({width:320,height:640});await planning.goto('http://127.0.0.1:5197/#/reorder-calculator');await planning.getByLabel('Planning month',{exact:true}).fill(`${new Date().getUTCFullYear()}-06`);
+ assert.equal(await planning.getByLabel('Average monthly sales',{exact:true}).inputValue(),'60');assert.equal(await planning.getByLabel('Seasonal demand multiplier',{exact:true}).inputValue(),'2');assert.equal(await planning.locator('.reorder-result strong').textContent(),'5');
+ await planning.goto('http://127.0.0.1:5197/#/inventory');await planning.getByRole('button',{name:'Edit',exact:true}).click();await planning.getByLabel('Sales month 1',{exact:true}).waitFor();assert.equal(await planning.getByLabel('Demand classification',{exact:true}).inputValue(),'Seasonal-Critical');
+ assert.ok(await planning.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Mobile planning editor must fit viewport');
+ await planning.goto('http://127.0.0.1:5197/#/batches');await planning.getByLabel('EXPIRY-QA shelf life elapsed',{exact:true}).waitFor();assert.ok(await planning.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Mobile batch timeline must fit viewport');
+ await planning.goto('http://127.0.0.1:5197/#/dashboard');await planning.getByRole('heading',{name:'Stock health distribution'}).waitFor();assert.ok((await planning.locator('.activity-list').textContent()).includes('↔ 2'));assert.ok((await planning.locator('.activity-list').textContent()).includes('+3'));
+ assert.ok(await planning.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Mobile chart must fit viewport');
+ console.log('Trash restore/cancellation, persisted notification read state, staff restrictions, mobile layouts, dark mode, automatic refresh with edit pause, historical planning, timeline and chart passed.');
  console.log('Page/dialog entrance, reduced-motion fallback, keyboard cancellation and pending-button progress passed.');
  console.log('Light/dark theme, system preference, stored choice after refresh, keyboard toggle, storage fallback, dialog contrast in both modes and responsive workspace passed.');
  console.log('Unknown routes, API-backed reorder defaults, empty calculator, API alerts, and theme checks passed.');

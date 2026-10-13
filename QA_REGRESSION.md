@@ -171,3 +171,27 @@ Keep the database backup outside Git and test restoration into a separate databa
 before deploying the stock-control migration. Existing pending counts from before
 the migration require rejection and a fresh submission. Production readiness is
 not signed off while recovery and hosted database checks remain blocked.
+
+## Recovery, notifications and planning follow-up — 2026-10-14
+
+These results apply to the recovery, notification and planning source changes;
+hosted deployment verification is separate.
+
+| Check | Verification | Result |
+| --- | --- | --- |
+| Trash recovery | Eligible product/batch/user deletions are recoverable; inventory history rules remain guarded. Restore is audited; a deleted batch requires its parent to be restored first. Staff cannot bypass trash permissions. | Pass |
+| Account recovery | Delete revokes tokens; restore keeps the user disabled; login remains rejected until an administrator enables the account. | Pass |
+| Notification privacy | New movement notices persist once even after idempotent retries. Failed writes do not notify. Adjustment notices are limited to owners/current reviewers, including after demotion. Users cannot read another account's inbox. | Pass |
+| Read state | Mark-one/mark-all are account-scoped; unread counts and read state persist after reload. | Pass |
+| Accurate availability | Usable stock excludes expired/unallocated quantities. Transfer signs stay neutral; increasing/decreasing adjustments use recorded balances. Matched counts do not produce discrepancy alerts. | Pass |
+| Automatic refresh | Visible workspaces refresh every 30 seconds. Forms and dialogs pause automatic refresh. | Pass |
+| Planning history | Verified completed-month totals and seasonal month rules save through Laravel and survive reload; duplicates/current-month totals and invalid classifications are rejected. Missing history has a disclosed fallback. | Pass |
+| Perishable stock | Undated receipts and undated positive opening stock are rejected; verified dated receipts work. | Pass |
+| Mobile layout | Trash and Notifications fit 320×480, 390×640, 844×390 and 1440×900. Planning editor, batch timeline and stock chart fit 320px. Restore cancellation and pending controls pass; dark mode passes. | Pass |
+
+Backend: **101 tests, 545 assertions passed**. Calculations: **13 tests passed**.
+Complete browser regression and live Laravel regression passed with disposable
+fixtures. Vite production build passed. Final layout checks do not claim testing on
+physical devices or other browser engines. Three new migrations, hosted PostgreSQL
+checks, and external backup/restore verification are still required for release.
+No Sunny/chatbot code is included in these improvements.
