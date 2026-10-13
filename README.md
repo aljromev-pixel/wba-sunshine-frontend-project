@@ -33,7 +33,8 @@ VITE_API_TIMEOUT_MS=15000
 
 - Credential sign-in, session restore, and logout
 - Inventory, batch, movement, adjustment, alert, and audit views
-- Stock In, Stock Out, Transfer, and Return workflows
+- Stock In, Stock Out, internal location Transfer, and inspected resaleable Return workflows
+- Per-batch physical counts with approval and stale-count protection
 - Adjustment review by authorized users other than the requester
 - Role-protected product and batch CRUD
 - Administration Manager-only user-management CRUD
@@ -91,8 +92,11 @@ References: [GitHub Node build guidance](https://docs.github.com/en/actions/tuto
 
 Reports are **client-calculated reports based on API-provided data**. Laravel's
 persisted records, returned by `GET /api/v1/inventory`, are the authoritative data
-source. React uses the last successfully loaded snapshot to filter and calculate
-report rows; there are no report-generation API endpoints or mock report records.
+source, with older movement and adjustment pages read through
+`GET /api/v1/inventory/history/{section}`. React uses the last successfully loaded
+snapshot to filter and calculate report rows; there are no report-generation API
+endpoints or mock report records. Historical reports load all permitted history
+pages before print or CSV export is enabled; failures offer Retry.
 `src/utils/reports.js` defines the transformations used by the Reports page and print
 view. Refresh report data reloads the API snapshot through the shared inventory
 loader; failures use its persistent error/Retry flow. Reports are snapshots, not
@@ -101,13 +105,21 @@ real-time accounting or independently stored backend reports.
 | Report | Rule |
 | --- | --- |
 | Inventory Summary | Saved product stock/reorder points, with calculated stock status. |
-| Stock Movement | All API movement records, their type, recorded quantity, reference and timestamp. |
+| Stock Movement | API movement records, type, quantity, reference, timestamp, recorded stock before/after, and storage locations. Legacy missing balances are shown as not recorded. |
 | Low Stock | Stock ≤ saved reorder point; shortfall = max(0, reorder point − stock). |
-| Expiring Stock | Quantity > 0 and expiry between today and 30 days ahead, inclusive, using browser-local calendar dates. Excludes expired/depleted/undated batches. |
+| Expiring Stock | Quantity > 0 and expiry between today and 30 days ahead, inclusive, using the API warehouse timezone (default Asia/Manila). Excludes expired/depleted/undated batches. |
 | Inventory Discrepancy | Adjustment requested quantity differs from stock recorded at submission, across all statuses. Variance = requested − recorded quantity. |
 | Cycle Count | Adjustments whose reason matches `Cycle count: system N, counted N`, including matched counts. This is the current UI convention; the API has no structured count-source field, so manual reasons matching it are also included. |
 | Adjustment | All API adjustment records, across Pending/Approved/Rejected statuses. |
 | Seasonal Reorder | Saved monthly sales ÷ 30 × explicit demand multiplier × saved lead time, plus safety stock. Safety stock = daily demand × lead time × safety percent ÷ 100. Round the resulting reorder point up; shortfall = max(0, result − stock). |
+
+Movement, discrepancy, cycle-count, and adjustment reports accept inclusive date
+ranges in the warehouse timezone. Stock reports describe the current snapshot;
+they do not reconstruct historical stock. CSV export quotes values and neutralizes
+spreadsheet formulas. The layout shows the snapshot refresh time and offers an
+explicit inventory refresh. Movement/count retries retain their request UUID after
+uncertain failures to prevent duplicate writes; other uncertain CRUD results should
+be verified by refreshing before resubmission.
 
 Seasonal assumptions default to demand multiplier 1 and safety 15%, are editable
 from 0–100, and are shown in the report/print view. Recommendations never update
