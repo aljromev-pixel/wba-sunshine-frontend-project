@@ -33,6 +33,14 @@ async function checkDialogContrast(page){
  });
  for(const {text,ratio} of ratios)assert.ok(ratio>=4.5,`Dialog contrast for ${text}: ${ratio}`);
 }
+async function waitForTheme(page,mode){
+ await page.waitForFunction(mode=>document.documentElement.dataset.theme===mode&&document.querySelector('.theme-toggle')?.getAttribute('aria-busy')!=='true',mode);
+}
+async function selectTheme(page,mode){
+ await page.waitForFunction(()=>document.querySelector('.theme-toggle')?.getAttribute('aria-busy')!=='true');
+ if(await page.evaluate(()=>document.documentElement.dataset.theme)!==mode)await page.getByRole('button',{name:'Dark mode',exact:true}).click();
+ await waitForTheme(page,mode);
+}
 try{
  browser=await chromium.launch({channel:'msedge',headless:true});
  let passwordCalls=0,inventoryCalls=0,releasePassword,passwordMode='validation',setupComplete=false,setupInventoryFail=true;
@@ -47,12 +55,13 @@ try{
  await publicPage.emulateMedia({colorScheme:'light'});
  await publicPage.waitForFunction(()=>document.documentElement.dataset.theme==='light');
  await themeButton.focus();await publicPage.keyboard.press('Enter');
+ await waitForTheme(publicPage,'dark');
  assert.equal(await themeButton.getAttribute('aria-pressed'),'true');
  await publicPage.reload();await publicPage.getByRole('heading',{name:'A brighter way to keep stock moving.'}).waitFor();
  assert.equal(await publicPage.evaluate(()=>document.documentElement.dataset.theme),'dark');
  assert.equal(await publicPage.evaluate(()=>localStorage.getItem('sunshine-theme')),'dark');
  for(const mode of ['dark','light']){
-  if(await publicPage.evaluate(()=>document.documentElement.dataset.theme)!==mode)await themeButton.click();
+  await selectTheme(publicPage,mode);
   assert.equal(await publicPage.evaluate(()=>getComputedStyle(document.documentElement).colorScheme),mode);
   assert.equal(await publicPage.locator('meta[name="theme-color"]').getAttribute('content'),mode==='dark'?'#181a18':'#f3f2ee');
   assert.equal(await publicPage.locator('.public-page').evaluate(el=>getComputedStyle(el).backgroundImage),'none');
@@ -62,6 +71,57 @@ try{
    if(process.env.QA_SCREENSHOT_DIR)await publicPage.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-home-${mode}-${width}.png`,fullPage:true,animations:'disabled'});
   }
  }
+ for(const fallback of [false,true]){
+  const animatedTheme=await makePage(({json})=>json(200,{}),false);
+  await animatedTheme.setViewportSize({width:390,height:740});
+  await animatedTheme.emulateMedia({reducedMotion:'no-preference'});
+  await animatedTheme.addInitScript(fallback=>{
+   if(!localStorage.getItem('sunshine-theme'))localStorage.setItem('sunshine-theme','dark');
+   if(fallback)Object.defineProperty(document,'startViewTransition',{value:undefined,configurable:true});
+   window.__qaThemeAnimations=[];
+   document.addEventListener('click',event=>{
+    const button=event.target.closest('.theme-toggle');
+    if(button){const icon=button.querySelector('svg').getBoundingClientRect();window.__qaThemeLens={x:icon.left+icon.width/2,y:icon.top+icon.height*.22};}
+   },true);
+   const animate=Element.prototype.animate;
+   Element.prototype.animate=function(frames,options){
+    const animation=animate.call(this,frames,options);
+    if(options?.pseudoElement||this.classList.contains('theme-light-spread'))window.__qaThemeAnimations.push({frames,options});
+    return animation;
+   };
+  },fallback);
+  await animatedTheme.goto('http://127.0.0.1:5197');await animatedTheme.locator('.flashlight-icon').waitFor();
+  for(const mode of ['light','dark']){
+   await animatedTheme.getByRole('button',{name:'Dark mode',exact:true}).click();await waitForTheme(animatedTheme,mode);
+   const animation=await animatedTheme.evaluate(()=>window.__qaThemeAnimations.at(-1));
+   const paths=animation.frames.clipPath;
+   assert.ok(paths[mode==='light'?0:1].startsWith('circle(0px'),`${mode} must ${mode==='light'?'expand':'contract'} from the icon`);
+   const [radius,x,y]=paths[mode==='light'?1:0].match(/[\d.]+/g).map(Number);
+   const lens=await animatedTheme.evaluate(()=>window.__qaThemeLens);
+   assert.ok(Math.abs(x-lens.x)<1&&Math.abs(y-lens.y)<1,'The light reveal must start at the flashlight lens');
+   assert.ok(radius>=Math.hypot(Math.max(x,390-x),Math.max(y,740-y))-.1,'The reveal must reach every viewport corner');
+   if(!fallback)assert.equal(animation.options.pseudoElement,mode==='light'?'::view-transition-new(root)':'::view-transition-old(root)');
+   assert.equal(await animatedTheme.locator('.theme-light-spread').count(),0);
+  }
+  const animationCount=await animatedTheme.evaluate(()=>window.__qaThemeAnimations.length);
+  await animatedTheme.emulateMedia({reducedMotion:'reduce'});await selectTheme(animatedTheme,'light');
+  assert.equal(await animatedTheme.evaluate(()=>window.__qaThemeAnimations.length),animationCount,'Reduced motion must change theme without a reveal animation');
+  await animatedTheme.reload();await waitForTheme(animatedTheme,'light');
+  for(const width of [320,390]){
+   await animatedTheme.setViewportSize({width,height:740});
+   const logo=await animatedTheme.locator('.login-sun').boundingBox(),sun=await animatedTheme.locator('.login-sun .sun-icon').boundingBox();
+   assert.ok(Math.abs(logo.x+logo.width/2-sun.x-sun.width/2)<.5&&Math.abs(logo.y+logo.height/2-sun.y-sun.height/2)<.5,'Mobile sun artwork must be centered inside its circle');
+  }
+  await animatedTheme.close();
+ }
+ let releaseSession;
+ const loadingLogo=await makePage(({path,json})=>path.endsWith('/auth/me')?new Promise(resolve=>releaseSession=()=>resolve(json(200,{user}))):json(200,inventory));
+ await loadingLogo.goto('http://127.0.0.1:5197');await loadingLogo.locator('.loading-logo .sun-icon').waitFor();
+ assert.equal(await loadingLogo.locator('.loading-logo .sun-icon').evaluate(el=>getComputedStyle(el).animationName),'sun-rotate');
+ await loadingLogo.emulateMedia({reducedMotion:'reduce'});
+ assert.equal(await loadingLogo.locator('.loading-logo .sun-icon').evaluate(el=>getComputedStyle(el).animationName),'none');
+ releaseSession();await loadingLogo.getByRole('heading',{name:'A complete view of inventory control.'}).waitFor();await loadingLogo.close();
+ console.log('Flashlight reveal origin, full-page expansion and reverse contraction, unsupported-browser fallback, reduced motion, stored choice, rotating loading logo and centered mobile suns passed.');
  assert.equal(await publicPage.getByRole('link',{name:/Create.*account|Sign up/i}).count(),0);
  assert.match(await publicPage.locator('.public-caption').innerText(),/administrator/);
  for(const width of [1440,390]){
@@ -233,7 +293,7 @@ try{
  const visualInventory={...reviews,loadedAt:'2030-01-15T12:00:00Z',products:[{...products[0],name:'Portable inverter air conditioner with a long warehouse product description'}]};
  const visual=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user:{...user,name:'Alexandria Catherine Warehouse Administrator'}}:visualInventory));
  await visual.emulateMedia({reducedMotion:'reduce'});
- for(const width of [320,768,1440]){
+ for(const width of [320,768,1440,1920,2560]){
   await visual.setViewportSize({width,height:640});await visual.goto('http://127.0.0.1:5197/#/adjustments');
   await visual.getByRole('heading',{name:'Approve or reject requests'}).waitFor();
   const geometry=await visual.evaluate(()=>{
@@ -247,6 +307,9 @@ try{
    assert.ok(actions.y>=details.y+details.height,'Mobile review controls must not squeeze or overlap request details');
   }
  }
+ await visual.goto('http://127.0.0.1:5197/#/dashboard');await visual.locator('.hero-panel').waitFor();
+ const alignment=await visual.evaluate(()=>['.topbar','.inventory-refresh','.refresh-status','.hero-panel'].map(selector=>{const rect=document.querySelector(selector).getBoundingClientRect();return{left:rect.left,right:rect.right};}));
+ for(const bounds of alignment)assert.ok(Math.abs(bounds.left-alignment[0].left)<1&&Math.abs(bounds.right-alignment[0].right)<1,'Header, refresh controls, notice and dashboard must share their edges on wide screens');
  await visual.setViewportSize({width:320,height:480});await visual.goto('http://127.0.0.1:5197/#/inventory');
  const visualTrigger=visual.getByRole('button',{name:'Delete',exact:true});await visualTrigger.click();await visual.getByRole('dialog').waitFor();
  assert.ok(await visual.evaluate(()=>scrollY>0),'Dialog placement must be checked after scrolling the page');
@@ -315,7 +378,7 @@ try{
  await sales.goto('http://127.0.0.1:5197/#/reports');await sales.getByRole('heading',{name:'This module is not part of your assigned workspace.'}).waitFor();
  console.log('All eight reports, explicit source, API refresh, assumptions, empty/restricted states, print and responsive layout passed.');
  for(const mode of ['dark','light']){
-  if(await page.evaluate(()=>document.documentElement.dataset.theme)!==mode)await page.getByRole('button',{name:'Dark mode',exact:true}).click();
+  await selectTheme(page,mode);
   await page.goto('http://127.0.0.1:5197/#/users');await page.getByRole('heading',{name:'User management',exact:true}).waitFor();
   await page.reload();await page.getByRole('heading',{name:'User management',exact:true}).waitFor();
   for(const width of [1440,390]){
@@ -323,7 +386,7 @@ try{
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`${mode} workspace overflow at ${width}`);
    if(process.env.QA_SCREENSHOT_DIR)await page.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-workspace-${mode}-${width}.png`,fullPage:true,animations:'disabled'});
   }
-  await privacy.getByRole('button',{name:'Dark mode',exact:true}).click();
+  await selectTheme(privacy,mode);
   await privacy.getByRole('row').filter({hasText:'Alex Lopez'}).getByRole('button',{name:'Delete',exact:true}).click();
   await checkDialogContrast(privacy);await privacy.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
  }
@@ -331,6 +394,7 @@ try{
  await unavailableStorage.addInitScript(()=>Object.defineProperty(window,'localStorage',{get(){throw new Error('Storage unavailable');}}));
  await unavailableStorage.goto('http://127.0.0.1:5197/#/sign-in');
  await unavailableStorage.getByRole('button',{name:'Dark mode',exact:true}).click();
+ await waitForTheme(unavailableStorage,'dark');
  assert.equal(await unavailableStorage.evaluate(()=>document.documentElement.dataset.theme),'dark');
  const motion=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user}:inventory));
  await motion.goto('http://127.0.0.1:5197/#/inventory');await motion.getByRole('heading',{name:'Inventory at a glance',exact:true}).waitFor();
@@ -366,7 +430,7 @@ try{
  assert.equal(await motion.locator('.ambient-gold').evaluate(el=>getComputedStyle(el).animationName),'none');
  if(process.env.QA_SCREENSHOT_DIR){
   for(const mode of ['light','dark']){
-   if(await motion.evaluate(()=>document.documentElement.dataset.theme)!==mode)await motion.getByRole('button',{name:'Dark mode',exact:true}).click();
+   await selectTheme(motion,mode);
    await motion.getByRole('button',{name:'Open navigation',exact:true}).click();
    await motion.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-sidebar-${mode}-390.png`,fullPage:true,animations:'disabled'});
    await motion.keyboard.press('Escape');
@@ -470,7 +534,7 @@ try{
  for(const viewport of [{width:1440,height:900},{width:390,height:640},{width:320,height:480},{width:844,height:390}]){
   for(const surface of [trash,notices]){await surface.setViewportSize(viewport);assert.ok(await surface.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Recovery and notification pages must fit viewport');}
  }
- await notices.getByRole('button',{name:'Dark mode',exact:true}).click();assert.equal(await notices.locator('html').getAttribute('data-theme'),'dark');
+ await selectTheme(notices,'dark');assert.equal(await notices.locator('html').getAttribute('data-theme'),'dark');
  const restrictedTrash=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user:{...user,department:'Warehouse',roleLevel:'Staff'}}:inventory));
  await restrictedTrash.goto('http://127.0.0.1:5197/#/trash');await restrictedTrash.getByRole('heading',{name:'This module is not part of your assigned workspace.'}).waitFor();
  let backgroundLoads=0;

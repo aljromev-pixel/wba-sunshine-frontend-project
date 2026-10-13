@@ -219,3 +219,15 @@ Complete browser regression, live Laravel regression with disposable SQLite,
 included successful CRUD and trash restore, not just intercepted responses.
 These results apply to the source changes; hosted visual checks and physical-device
 testing are separate. Sunny/chatbot files were not changed for this follow-up.
+
+Flashlight and logo follow-up: the workspace header, refresh controls, notice and
+dashboard now share a 1450px content container, including at 1920px and 2560px.
+The sun is symmetric SVG artwork centered within its circle; session/inventory
+loading and pending buttons reuse it with rotation. Theme changes expand from
+the flashlight lens into light mode and retract for dark mode; a soft glow is
+used when native view transitions are unavailable. Reduced-motion preferences
+skip the reveal and rotation. Tests cover both transition paths, viewport-corner
+coverage, stored choice, and mobile sun centering. Complete browser regression
+and the production build passed. The updated screenshot audit passed 190
+page/theme/viewport combinations, including ultrawide layouts. These changes are
+local and do not include Sunny.
