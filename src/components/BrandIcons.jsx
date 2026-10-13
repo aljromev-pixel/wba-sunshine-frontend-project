@@ -1,3 +1,17 @@
+export function WbaEmblem({ className = '' }) {
+  return <svg className={`wba-emblem ${className}`.trim()} viewBox="0 0 128 128" aria-hidden="true" focusable="false">
+    <g className="wba-sun-rays">
+      {Array.from({ length: 12 }, (_, index) => <g key={index} transform={`rotate(${index * 30} 64 64)`}>
+        <path d="M64 4 70 16H58Z" fill="#e4b735" />
+        <path d="M64 4v12h-6Z" fill="#b88713" />
+      </g>)}
+    </g>
+    <circle cx="64" cy="64" r="43" fill="#242521" stroke="#e4b735" strokeWidth="2.5" />
+    <circle cx="64" cy="64" r="38.5" fill="none" stroke="#f3f2ee" strokeOpacity=".25" />
+    <text className="wba-sun-lettering" x="64" y="74" textAnchor="middle" fontFamily="Georgia, 'Times New Roman', serif" fontSize="29" fontWeight="700" letterSpacing="-1" fill="#f3f2ee">WBA</text>
+  </svg>
+}
+
 export function SunIcon({ className = 'sun-icon' }) {
   return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true" focusable="false">
     <circle cx="12" cy="12" r="4" />

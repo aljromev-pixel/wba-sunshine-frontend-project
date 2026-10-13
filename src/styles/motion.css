@@ -36,7 +36,9 @@ input, select, textarea { transition: border-color var(--motion-fast) ease-out; 
   border-radius: 50%;
   animation: spin 800ms linear infinite;
 }
-.loading-logo .sun-icon, .button-spinner.sun-icon { animation: sun-rotate 1.8s linear infinite; transform-origin: center; }
+.loading-logo .wba-sun-rays { animation: wba-rays-rotate 8s linear infinite; transform-box: view-box; transform-origin: 50% 50%; }
+.button-spinner.sun-icon { animation: sun-rotate 1.8s linear infinite; transform-origin: center; }
+@keyframes wba-rays-rotate { to { transform: rotate(360deg); } }
 @keyframes sun-rotate { to { transform: rotate(360deg); } }
 .theme-light-spread { position: fixed; inset: 0; z-index: 100; pointer-events: none; background: radial-gradient(circle at var(--spread-x) var(--spread-y), rgb(255 251 227 / 32%), rgb(228 183 53 / 14%) 55%, rgb(255 255 255 / 8%)); }
 .theme-light-spread-dark { background: rgb(255 245 210 / 14%); }

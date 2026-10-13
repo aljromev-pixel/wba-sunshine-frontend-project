@@ -47,7 +47,8 @@
 :root[data-text-size='default'] { font-size: 100%; }
 :root[data-text-size='large'] { font-size: 112.5%; }
 .wba-brand { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: .65rem; color: var(--text); text-decoration: none; max-width: 100%; }
-.wba-mark { display: block; flex-shrink: 0; width: 44px; height: 44px; }
+.wba-emblem { display: block; flex-shrink: 0; width: 100%; height: 100%; }
+.wba-mark { width: 44px; height: 44px; }
 .wba-brand-copy { display: grid; gap: .2rem; min-width: 0; }
 .wba-brand-copy strong { font-size: 1.6rem; line-height: 1.1; letter-spacing: -.04em; }
 .wba-brand-copy > span { font-size: .75rem; line-height: 1.4; overflow-wrap: anywhere; }
@@ -148,9 +149,13 @@ body, .application, .main-content, .public-page, .login-page { background: var(-
 .login-sun { padding: 8px; flex-shrink: 0; line-height: 0; }
 .public-orbit { padding: 17px; line-height: 0; }
 .loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; }
-.loading-state .loading-logo { display: grid; place-items: center; width: 58px; height: 58px; padding: 12px; margin: 0; border: 1px solid var(--border); border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); animation: none; }
+.loading-state .loading-logo { display: grid; place-items: center; width: 88px; height: 88px; padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; animation: none; }
 .loading-state p { margin: 0; line-height: 1.5; }
-.loading-screen { min-height: 100svh; }
+.loading-screen { min-height: 100svh; padding: 1.5rem; }
+.loading-screen .loading-logo { width: 128px; height: 128px; }
+.loading-brand { display: grid; gap: .4rem; text-align: center; }
+.loading-brand strong { color: var(--text); font-size: 1.75rem; line-height: 1.1; letter-spacing: -.04em; }
+.loading-brand small { color: var(--muted); font-size: .75rem; line-height: 1.5; }
 .button-spinner.sun-icon { width: 1em; height: 1em; border: 0; border-radius: 0; }
 .workspace-content { width: 100%; max-width: 1450px; margin-inline: auto; min-width: 0; }
 .refresh-status { margin: .65rem 0 1.25rem; }

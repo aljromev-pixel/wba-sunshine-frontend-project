@@ -6,9 +6,61 @@
     <meta name="theme-color" content="#f3f2ee" />
     <link rel="icon" type="image/svg+xml" href="/wba-mark.svg" />
     <title>WBA Inventory | Powered by Sunshine team</title>
+    <style>
+      body { margin: 0; }
+      .boot-loading { box-sizing: border-box; min-height: 100svh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; padding: 1.5rem; background: #f3f2ee; color: #242521; color-scheme: light; font-family: Arial, sans-serif; text-align: center; }
+      :root[data-theme='dark'] .boot-loading { background: #181a18; color: #f2f3ed; color-scheme: dark; }
+      .boot-emblem { display: block; width: 128px; height: 128px; }
+      .boot-loading strong { font-size: 28px; line-height: 1.1; }
+      .boot-loading small { font-size: 12px; line-height: 1.5; }
+      .boot-loading p { margin: 0; line-height: 1.5; }
+      .boot-loading .wba-sun-rays { animation: wba-boot-rays-rotate 8s linear infinite; transform-box: view-box; transform-origin: 50% 50%; }
+      @keyframes wba-boot-rays-rotate { to { transform: rotate(360deg); } }
+      :root[data-motion='reduced'] .boot-loading .wba-sun-rays { animation: none; }
+      @media (prefers-reduced-motion: reduce) { .boot-loading .wba-sun-rays { animation: none; } }
+    </style>
+    <script>
+      (() => {
+        let theme, reducedMotion = false;
+        try {
+          theme = localStorage.getItem('sunshine-theme');
+          reducedMotion = JSON.parse(localStorage.getItem('wba-display-preferences'))?.motion === 'reduced';
+        } catch {}
+        const root = document.documentElement;
+        root.dataset.theme = ['light', 'dark'].includes(theme) ? theme : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        if (reducedMotion) root.dataset.motion = 'reduced';
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', root.dataset.theme === 'dark' ? '#181a18' : '#f3f2ee');
+      })();
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot-loading" role="status" aria-live="polite" aria-busy="true">
+        <svg xmlns="http://www.w3.org/2000/svg" class="boot-emblem" viewBox="0 0 128 128" aria-hidden="true" focusable="false">
+          <g class="wba-sun-rays">
+            <g transform="rotate(0 64 64)"><path d="M64 4 70 16H58Z" fill="#e4b735"/><path d="M64 4v12h-6Z" fill="#b88713"/></g>
+            <g transform="rotate(30 64 64)"><path d="M64 4 70 16H58Z" fill="#e4b735"/><path d="M64 4v12h-6Z" fill="#b88713"/></g>
+            <g transform="rotate(60 64 64)"><path d="M64 4 70 16H58Z" fill="#e4b735"/><path d="M64 4v12h-6Z" fill="#b88713"/></g>
+            <g transform="rotate(90 64 64)"><path d="M64 4 70 16H58Z" fill="#e4b735"/><path d="M64 4v12h-6Z" fill="#b88713"/></g>
+            <g transform="rotate(120 64 64)"><path d="M64 4 70 16H58Z" fill="#e4b735"/><path d="M64 4v12h-6Z" fill="#b88713"/></g>
+            <g transform="rotate(150 64 64)"><path d="M64 4 70 16H58Z" fill="#e4b735"/><path d="M64 4v12h-6Z" fill="#b88713"/></g>
+            <g transform="rotate(180 64 64)"><path d="M64 4 70 16H58Z" fill="#e4b735"/><path d="M64 4v12h-6Z" fill="#b88713"/></g>
+            <g transform="rotate(210 64 64)"><path d="M64 4 70 16H58Z" fill="#e4b735"/><path d="M64 4v12h-6Z" fill="#b88713"/></g>
+            <g transform="rotate(240 64 64)"><path d="M64 4 70 16H58Z" fill="#e4b735"/><path d="M64 4v12h-6Z" fill="#b88713"/></g>
+            <g transform="rotate(270 64 64)"><path d="M64 4 70 16H58Z" fill="#e4b735"/><path d="M64 4v12h-6Z" fill="#b88713"/></g>
+            <g transform="rotate(300 64 64)"><path d="M64 4 70 16H58Z" fill="#e4b735"/><path d="M64 4v12h-6Z" fill="#b88713"/></g>
+            <g transform="rotate(330 64 64)"><path d="M64 4 70 16H58Z" fill="#e4b735"/><path d="M64 4v12h-6Z" fill="#b88713"/></g>
+          </g>
+          <circle cx="64" cy="64" r="43" fill="#242521" stroke="#e4b735" stroke-width="2.5"/>
+          <circle cx="64" cy="64" r="38.5" fill="none" stroke="#f3f2ee" stroke-opacity=".25"/>
+          <text class="wba-sun-lettering" x="64" y="74" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="29" font-weight="700" letter-spacing="-1" fill="#f3f2ee">WBA</text>
+        </svg>
+        <strong>WBA</strong>
+        <small>Powered by Sunshine team</small>
+        <p>Opening WBA…</p>
+        <noscript>Enable JavaScript in your browser to use the warehouse workspace.</noscript>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

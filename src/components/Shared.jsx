@@ -1,7 +1,7 @@
 import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { apiErrorMessage } from '../utils/apiErrors'
-import { SunIcon } from './BrandIcons'
+import { SunIcon, WbaEmblem } from './BrandIcons'
 
 export function useFormFeedback() {
   const [error, setMessage] = useState('')
@@ -43,8 +43,9 @@ export function StatusBadge({ children }) {
 }
 export function LoadingState({ children = 'Loading workspace…', fullPage = false }) {
   return (
-    <div className={`loading-state${fullPage ? ' loading-screen' : ''}`} role="status" aria-live="polite">
-      <span className="loading-logo" aria-hidden="true"><SunIcon /></span>
+    <div className={`loading-state${fullPage ? ' loading-screen' : ''}`} role="status" aria-live="polite" aria-busy="true">
+      <span className="loading-logo" aria-hidden="true"><WbaEmblem /></span>
+      {fullPage && <div className="loading-brand"><strong>WBA</strong><small>Powered by Sunshine team</small></div>}
       <p>{children}</p>
     </div>
   )

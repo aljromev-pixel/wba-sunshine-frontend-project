@@ -1,7 +1,9 @@
+import { WbaEmblem } from './BrandIcons'
+
 export function BrandLogo({ compact = false, href = '#/' }) {
   const className = `wba-brand${compact ? ' wba-brand-compact' : ''}`
   const content = <>
-    <img className="wba-mark" src="/wba-mark.svg" width="44" height="44" alt="" aria-hidden="true" />
+    <WbaEmblem className="wba-mark" />
     <span className="wba-brand-copy">
       <strong>WBA</strong>
       {!compact && <span>WalangBrownout Appliances</span>}
