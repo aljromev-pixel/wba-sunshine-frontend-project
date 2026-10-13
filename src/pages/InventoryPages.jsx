@@ -7,7 +7,6 @@ import { PERMISSIONS } from '../utils/permissions'
 import { apiErrorMessage } from '../utils/apiErrors'
 import { ProductPlanningFields } from '../components/ProductPlanningFields'
 
-const categories = ['All categories', 'Air Conditioners', 'Smart Home', 'Air Quality', 'Replacement Filters']
 const emptyProduct = { sku: '', name: '', category: '', stock: 0, reorderPoint: 0, capacity: '', supplier: '', leadTime: 0, unit: 'units', monthlySales: 0, demandPattern: 'Stable-Demand', monthlySalesHistory: [], seasonalProfile: [] }
 
 function ProductForm({ initial, onClose, onSaved, notify, onBusyChange }) {
@@ -56,6 +55,10 @@ export function InventoryList() {
   const [saving, setSaving] = useState(false)
   const [confirmation, setConfirmation] = useState(null)
   const manage = can(PERMISSIONS.INVENTORY_EDIT)
+  const categories = useMemo(() => [
+    'All categories',
+    ...[...new Set(data.products.map(product => product.category))].sort((a, b) => a.localeCompare(b)),
+  ], [data.products])
   const remove = async (item) => {
     await inventoryService.deleteProduct(item.id)
     notify('Product deleted.')
