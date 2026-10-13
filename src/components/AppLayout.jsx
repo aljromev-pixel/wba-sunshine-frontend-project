@@ -31,7 +31,7 @@ const navGroups = [
 ]
 const isActive = (item, path) => path === item.href || (item.href === '/inventory' && path.startsWith('/inventory/'))
 const title = (path) =>
-  nav.find((item) => item.href === path)?.label || (path.startsWith('/inventory/') ? 'Product Details' : 'WBA')
+  nav.find((item) => item.href === path)?.label || ({ '/settings': 'Settings', '/help': 'Help Center' }[path]) || (path.startsWith('/inventory/') ? 'Product Details' : 'WBA')
 
 export function AppLayout({ path, children }) {
   const { user, can, logout, notice, data, retryInventory, inventoryLoading, backgroundError } = useApp()
@@ -100,7 +100,10 @@ export function AppLayout({ path, children }) {
               {user.department} • {user.roleLevel}
             </small>
           </div>
-          <button className="text-button" onClick={logout}>Sign out</button>
+          <div className="profile-actions">
+            <a className={`profile-action ${['/settings', '/help'].includes(path) ? 'active' : ''}`} href="#/settings" aria-current={path === '/settings' ? 'page' : undefined} onClick={() => setOpen(false)}>Settings</a>
+            <button className="text-button" onClick={logout}>Sign out</button>
+          </div>
         </div>
       </aside>
       <main className="main-content" inert={mobile && open}>
@@ -129,7 +132,7 @@ export function AppLayout({ path, children }) {
             </div>
           </div>
         </header>
-        {data.loadedAt && !['/notifications', '/trash'].includes(path) && <>
+        {data.loadedAt && !['/notifications', '/trash', '/settings', '/help'].includes(path) && <>
           <div className="form-actions inventory-refresh"><small>Inventory updated: {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZone: data.warehouseTimezone || 'Asia/Manila' }).format(new Date(data.loadedAt))} · {data.warehouseTimezone || 'Asia/Manila'}</small><button type="button" className="inline-button" disabled={inventoryLoading} onClick={retryInventory}>Refresh inventory</button></div>
           <p className="refresh-status" role="status">{backgroundError || 'Live updates pause while editing.'}</p>
         </>}

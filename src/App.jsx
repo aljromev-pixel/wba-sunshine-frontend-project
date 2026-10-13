@@ -12,6 +12,8 @@ import { AuditTrail, ReorderCalculator, Reports, Users } from './pages/Operation
 import { AlertPage as Alerts } from './pages/AlertPage'
 import { TrashPage } from './pages/TrashPage'
 import { NotificationsPage } from './pages/NotificationsPage'
+import { PreferencesProvider } from './context/PreferencesContext'
+import { SettingsPage, HelpCenter } from './pages/SettingsPage'
 
 const permissions = {
   '/inventory': PERMISSIONS.INVENTORY_VIEW,
@@ -40,6 +42,9 @@ function NotFound() {
   )
 }
 export default function App() {
+  return <PreferencesProvider><AppRoutes /></PreferencesProvider>
+}
+function AppRoutes() {
   const { user, can, authLoading, authError, inventoryLoading, inventoryError, retryInventory, logout } = useApp()
   const [path, setPath] = useState(() => window.location.hash.slice(1) || '/')
   useEffect(() => {
@@ -56,7 +61,8 @@ export default function App() {
     return <Login />
   }
   if (user.mustChangePassword) return <SetPassword />
-  if (inventoryLoading || inventoryError) return <AppLayout path={path}>
+  const supportRoute = ['/settings', '/help'].includes(path)
+  if (!supportRoute && (inventoryLoading || inventoryError)) return <AppLayout path={path}>
     <section className="surface">
       {inventoryLoading ? <LoadingState /> : <>
         <h2>Unable to load inventory</h2>
@@ -112,6 +118,10 @@ export default function App() {
       <Users />
     ) : path === '/trash' ? (
       <TrashPage />
+    ) : path === '/settings' ? (
+      <SettingsPage />
+    ) : path === '/help' ? (
+      <HelpCenter />
     ) : path === '/notifications' ? (
       <NotificationsPage />
     ) : (

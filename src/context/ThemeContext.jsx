@@ -14,6 +14,8 @@ document.documentElement.dataset.theme = savedTheme() || systemTheme()
 
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme)
+  const [preference, setPreference] = useState(() => savedTheme() || 'system')
+  const preferenceRef = useRef(preference)
   const [changingTheme, setChangingTheme] = useState(false)
   const [spread, setSpread] = useState(null)
   const changing = useRef(false)
@@ -26,22 +28,44 @@ export function ThemeProvider({ children }) {
   }, [theme])
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)')
-    const update = () => setTheme(savedTheme() || systemTheme())
+    const update = () => { if (preferenceRef.current === 'system') setTheme(systemTheme()) }
+    const sync = event => {
+      if (event.key !== themeKey && event.key !== null) return
+      const next = savedTheme() || 'system'
+      preferenceRef.current = next
+      setPreference(next)
+      setTheme(next === 'system' ? systemTheme() : next)
+    }
     media.addEventListener('change', update)
-    window.addEventListener('storage', update)
+    window.addEventListener('storage', sync)
     return () => {
       media.removeEventListener('change', update)
-      window.removeEventListener('storage', update)
+      window.removeEventListener('storage', sync)
       transition.current?.skipTransition()
       glowAnimation.current?.cancel()
     }
   }, [])
+  const savePreference = choice => {
+    preferenceRef.current = choice
+    setPreference(choice)
+    try {
+      if (choice === 'system') localStorage.removeItem(themeKey)
+      else localStorage.setItem(themeKey, choice)
+      return true
+    } catch { return false }
+  }
+  const setThemePreference = choice => {
+    if (!['light', 'dark', 'system'].includes(choice)) return false
+    const saved = savePreference(choice)
+    setTheme(choice === 'system' ? systemTheme() : choice)
+    return saved
+  }
   const toggleTheme = async (icon) => {
     if (changing.current) return
     const next = theme === 'dark' ? 'light' : 'dark'
-    try { localStorage.setItem(themeKey, next) } catch { /* Switching still works when storage is unavailable. */ }
+    savePreference(next)
     const applyTheme = () => flushSync(() => setTheme(next))
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (document.documentElement.dataset.motion === 'reduced' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       applyTheme()
       return
     }
@@ -80,7 +104,7 @@ export function ThemeProvider({ children }) {
       setSpread(null)
     }
   }
-  return <ThemeContext.Provider value={{ theme, toggleTheme, changingTheme }}>
+  return <ThemeContext.Provider value={{ theme, preference, setThemePreference, toggleTheme, changingTheme }}>
     {children}
     {spread && createPortal(<div ref={glow} className={`theme-light-spread theme-light-spread-${spread.direction}`} style={{ '--spread-x': `${spread.x}px`, '--spread-y': `${spread.y}px` }} aria-hidden="true" />, document.body)}
   </ThemeContext.Provider>

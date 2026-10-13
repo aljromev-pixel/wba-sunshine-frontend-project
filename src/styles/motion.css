@@ -1,4 +1,9 @@
 /* Short, functional motion; interaction never waits for an animation to finish. */
+:root[data-motion='reduced'] *, :root[data-motion='reduced'] *::before, :root[data-motion='reduced'] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+:root[data-motion='reduced'] .button:hover:not(:disabled), :root[data-motion='reduced'] .theme-toggle:hover:not(:disabled), :root[data-motion='reduced'] .public-actions a:hover,
+:root[data-motion='reduced'] .button:active:not(:disabled), :root[data-motion='reduced'] .theme-toggle:active:not(:disabled), :root[data-motion='reduced'] .inline-button:active:not(:disabled),
+:root[data-motion='reduced'] .sidebar nav a:hover i { transform: none; }
+:root[data-ambient='off'] .ambient-background, :root[data-ambient='off'] .public-page::before, :root[data-ambient='off'] .login-page::before { display: none; }
 :root {
   --motion-fast: 140ms;
   --motion-enter: 220ms;
