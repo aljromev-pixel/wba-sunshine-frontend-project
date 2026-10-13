@@ -231,3 +231,35 @@ coverage, stored choice, and mobile sun centering. Complete browser regression
 and the production build passed. The updated screenshot audit passed 190
 page/theme/viewport combinations, including ultrawide layouts. These changes are
 local and do not include Sunny.
+
+Navigation cleanup follow-up: Inventory (Products and Batches), Stock movements,
+Stock checks, Insights and Management use collapsible groups; only one group is
+open, and active routes/deep links open their group automatically. Empty groups
+and forbidden destinations are excluded for each role. Notifications remain in
+the header; the duplicate dashboard shortcut and report-refresh button were
+removed. The shared inventory refresh still refreshes reports. Print/CSV actions
+are grouped, filters have separate labels, and snapshot copy is shorter. Mobile
+navigation scrolls separately while Sign out stays visible, including landscape.
+Keyboard navigation, focus trapping/restoration, Sales/Warehouse/Purchasing role
+destinations, report refresh, and the complete browser suite passed. The visual
+audit passed 190 page/theme/viewport combinations from 320px to 2560px; the Vite
+production build passed. These source changes leave Sunny untouched.
+
+Settings, staff help and WBA identity follow-up: Settings is available beside
+Sign out. Small/default/large text, light/dark/device theme, reduced motion and
+background lighting apply immediately and persist in the current browser.
+Resetting display preferences does not clear authentication or warehouse data.
+Corrupt preferences fall back to defaults; blocked storage reports that changes
+apply only for the current visit. The searchable Help Center filters guides and
+destinations by the signed-in role. Settings and Help remain accessible when
+inventory loading fails; warehouse pages retain their error and retry controls.
+WBA is the primary identity, credited as powered by the Sunshine team; the SVG
+mark, downloadable logo, public pages, workspace and favicon use this identity.
+The complete browser suite and production build passed. The screenshot audit
+checked 420 page/theme/text-size/viewport combinations: normal and large text,
+both themes, and widths of 320, 768, 1440, 1920 and 2560 pixels. No page overflow,
+inspected heading/paragraph clipping, header collisions or selected computed
+text-contrast failures were found. Narrow preference options use rows to avoid
+splitting labels. These are local browser checks with intercepted API fixtures;
+they do not establish hosted or physical-device verification. Sunny remains
+unchanged and excluded from this work.

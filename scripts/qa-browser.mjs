@@ -109,8 +109,9 @@ try{
   await animatedTheme.reload();await waitForTheme(animatedTheme,'light');
   for(const width of [320,390]){
    await animatedTheme.setViewportSize({width,height:740});
-   const logo=await animatedTheme.locator('.login-sun').boundingBox(),sun=await animatedTheme.locator('.login-sun .sun-icon').boundingBox();
+   const logo=await animatedTheme.locator('.public-orbit').boundingBox(),sun=await animatedTheme.locator('.public-orbit .sun-icon').boundingBox();
    assert.ok(Math.abs(logo.x+logo.width/2-sun.x-sun.width/2)<.5&&Math.abs(logo.y+logo.height/2-sun.y-sun.height/2)<.5,'Mobile sun artwork must be centered inside its circle');
+   const mark=await animatedTheme.locator('.wba-mark').boundingBox();assert.equal(mark.width,mark.height,'The WBA mark must retain its square proportions');assert.equal(await animatedTheme.locator('.wba-mark').evaluate(img=>img.complete&&img.naturalWidth>0),true);
   }
   await animatedTheme.close();
  }
@@ -184,8 +185,16 @@ try{
  await restore.goto('http://127.0.0.1:5197');
  await restore.getByRole('button',{name:'Retry session restoration'}).waitFor();assert.equal(meCalls,1);
  await restore.getByRole('button',{name:'Retry session restoration'}).click();
- await restore.getByRole('link',{name:/Inventory/}).first().waitFor();assert.equal(meCalls,2);
+ await restore.getByRole('link',{name:'Products',exact:true}).waitFor();assert.equal(meCalls,2);
  console.log('Session failure and retry passed.');
+ const supportDuringFailure=await makePage(({path,json})=>path.endsWith('/auth/me')?json(200,{user}):json(500,{message:'Inventory temporarily unavailable.'}));
+ await supportDuringFailure.goto('http://127.0.0.1:5197/#/dashboard');await supportDuringFailure.getByRole('heading',{name:'Unable to load inventory'}).waitFor();
+ await supportDuringFailure.getByRole('link',{name:'Settings',exact:true}).click();await supportDuringFailure.getByRole('heading',{name:'Your website settings'}).waitFor();
+ await supportDuringFailure.getByRole('link',{name:'Open Help Center',exact:true}).click();await supportDuringFailure.getByRole('heading',{name:'How can we help?'}).waitFor();
+ await supportDuringFailure.getByText('Handling failed loads and uncertain saves', {exact:true}).click();await supportDuringFailure.getByText('A permission error needs your supervisor or administrator. Settings cannot bypass it.',{exact:true}).waitFor();
+ await supportDuringFailure.goto('http://127.0.0.1:5197/#/dashboard');await supportDuringFailure.getByRole('heading',{name:'Unable to load inventory'}).waitFor();
+ await supportDuringFailure.goto('http://127.0.0.1:5197/#/settings');await supportDuringFailure.getByRole('heading',{name:'Your website settings'}).waitFor();await supportDuringFailure.close();
+ console.log('Authenticated Settings and Help remain available during inventory API failures; warehouse pages retain error and retry handling.');
  let inventoryFail=false,postCalls=0,deleteCalls=0,releaseDelete,releaseProduct,productCalls=0;
  const page=await makePage(({route,path,method,json})=>{
  if(path.endsWith('/auth/me'))return json(200,{user});
@@ -310,6 +319,29 @@ try{
  await visual.goto('http://127.0.0.1:5197/#/dashboard');await visual.locator('.hero-panel').waitFor();
  const alignment=await visual.evaluate(()=>['.topbar','.inventory-refresh','.refresh-status','.hero-panel'].map(selector=>{const rect=document.querySelector(selector).getBoundingClientRect();return{left:rect.left,right:rect.right};}));
  for(const bounds of alignment)assert.ok(Math.abs(bounds.left-alignment[0].left)<1&&Math.abs(bounds.right-alignment[0].right)<1,'Header, refresh controls, notice and dashboard must share their edges on wide screens');
+ const groupedNav=visual.locator('#workspace-navigation');
+ assert.equal(await groupedNav.getByRole('navigation',{name:'Workspace modules'}).getByRole('link').count(),3,'Overview and the two inventory destinations should be the only initially expanded module links');
+ assert.equal(await groupedNav.locator('nav a').count(),15,'All permitted modules remain available except the duplicate notification link');
+ assert.equal(await groupedNav.locator('a[href="#/notifications"]').count(),0);assert.equal(await visual.getByRole('button',{name:'Open dashboard',exact:true}).count(),0);
+ const movementGroup=groupedNav.getByRole('button',{name:'Stock movements',exact:true});await movementGroup.focus();await visual.keyboard.press('Enter');
+ assert.equal(await movementGroup.getAttribute('aria-expanded'),'true');assert.equal(await groupedNav.getByRole('link',{name:'Products',exact:true}).count(),0);
+ await visual.keyboard.press('Tab');assert.equal(await groupedNav.getByRole('link',{name:'Stock In',exact:true}).evaluate(el=>el===document.activeElement),true);
+ await groupedNav.getByRole('link',{name:'Stock Out',exact:true}).click();await visual.getByRole('heading',{name:'Stock Out transaction'}).waitFor();
+ assert.equal(await groupedNav.getByRole('link',{name:'Stock Out',exact:true}).getAttribute('aria-current'),'page');
+ await visual.goto('http://127.0.0.1:5197/#/inventory/1');await visual.getByRole('heading',{name:'Product Details',exact:true}).waitFor();
+ assert.equal(await groupedNav.getByRole('button',{name:'Inventory',exact:true}).getAttribute('aria-expanded'),'true');
+ assert.equal(await groupedNav.getByRole('link',{name:'Products',exact:true}).getAttribute('aria-current'),'page');
+ for(const [department,roleLevel,paths] of [
+  ['Sales','Staff',['/dashboard','/inventory','/stock-out','/alerts']],
+  ['Warehouse','Staff',['/dashboard','/inventory','/batches','/stock-in','/stock-out','/transfers','/returns','/cycle-count','/adjustments','/alerts']],
+  ['Purchasing','Manager',['/dashboard','/inventory','/batches','/adjustments','/alerts','/reorder-calculator','/reports','/audit-trail']],
+ ]){
+  const roleNav=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user:{...user,department,roleLevel}}:inventory));
+  await roleNav.goto('http://127.0.0.1:5197/#/dashboard');await roleNav.locator('#workspace-navigation nav').waitFor();
+  assert.deepEqual((await roleNav.locator('#workspace-navigation nav a').evaluateAll(links=>links.map(link=>link.getAttribute('href').slice(1)))).sort(),[...paths].sort(),`${department} ${roleLevel} must retain the permitted destinations without empty or unauthorized groups`);
+  assert.equal(await roleNav.locator('.sidebar-group-links:empty').count(),0);await roleNav.close();
+ }
+ console.log('Compact grouped navigation, keyboard access, automatic active/deep-link expansion, permitted role destinations, and removed duplicate shortcuts passed.');
  await visual.setViewportSize({width:320,height:480});await visual.goto('http://127.0.0.1:5197/#/inventory');
  const visualTrigger=visual.getByRole('button',{name:'Delete',exact:true});await visualTrigger.click();await visual.getByRole('dialog').waitFor();
  assert.ok(await visual.evaluate(()=>scrollY>0),'Dialog placement must be checked after scrolling the page');
@@ -340,7 +372,7 @@ try{
    await page.goto(`http://127.0.0.1:5197/#/${path}`);await page.getByRole('heading',{name:{inventory:'Inventory at a glance',batches:'FIFO and expiry management','stock-in':'Stock In transaction',adjustments:'Inventory adjustments',users:'User management'}[path],exact:true}).waitFor();
    if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1)) console.log('Overflow details',await page.evaluate(()=>[...document.querySelectorAll('main *')].filter(el=>el.getBoundingClientRect().right>innerWidth+1).slice(0,15).map(el=>({tag:el.tagName,class:el.className,width:el.getBoundingClientRect().width,right:el.getBoundingClientRect().right}))));
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`Page overflow: ${path} at ${width}`);
-   if(width===390){await page.getByRole('button',{name:'Open navigation'}).click();await page.getByRole('link',{name:/Inventory/}).first().click();await page.getByRole('heading',{name:'Inventory at a glance'}).waitFor();}
+   if(width===390){await page.getByRole('button',{name:'Open navigation'}).click();const inventoryGroup=page.locator('#workspace-navigation').getByRole('button',{name:'Inventory',exact:true});if(await inventoryGroup.getAttribute('aria-expanded')!=='true')await inventoryGroup.click();await page.getByRole('link',{name:'Products',exact:true}).click();await page.getByRole('heading',{name:'Inventory at a glance'}).waitFor();}
   }
  }
  for(const path of ['/missing-page','/inventory/','/inventory/1/extra']){
@@ -357,7 +389,7 @@ try{
  await page.goto('http://127.0.0.1:5197/#/alerts');await page.getByRole('heading',{name:'Inventory alerts'}).waitFor();await page.getByRole('heading',{name:'No alerts match this view'}).waitFor();
  assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).backgroundColor),'rgb(243, 242, 238)');
  let reportLoads=0;
- const reportInventory={...inventory,products:products.map((item,index)=>({...item,stock:index===0?5:20,reorderPoint:10,monthlySales:60,leadTime:7})),transactions:[{id:11,productId:1,type:'Stock Out',quantity:3,reference:'SO-QA',date:'2030-01-15T12:00:00Z',status:'Completed'}],adjustments:[{id:21,productId:1,systemQty:10,requestedQty:8,reason:'Cycle count: system 10, counted 8',status:'Approved',requestedById:1},{id:22,productId:2,systemQty:10,requestedQty:10,reason:'Manual adjustment',status:'Pending',requestedById:1}]};
+ const reportInventory={...inventory,loadedAt:'2030-01-15T12:00:00Z',products:products.map((item,index)=>({...item,stock:index===0?5:20,reorderPoint:10,monthlySales:60,leadTime:7})),transactions:[{id:11,productId:1,type:'Stock Out',quantity:3,reference:'SO-QA',date:'2030-01-15T12:00:00Z',status:'Completed'}],adjustments:[{id:21,productId:1,systemQty:10,requestedQty:8,reason:'Cycle count: system 10, counted 8',status:'Approved',requestedById:1},{id:22,productId:2,systemQty:10,requestedQty:10,reason:'Manual adjustment',status:'Pending',requestedById:1}]};
  const reporting=await makePage(({path,method,json})=>{assert.equal(method,'GET');if(path.endsWith('/auth/me'))return json(200,{user});reportLoads++;return json(200,reportInventory);});
  const expiryDates=await reporting.evaluate(()=>[0,30,31,-1].map(days=>{const date=new Date();date.setDate(date.getDate()+days);return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}));
  reportInventory.batches=expiryDates.map((expiresAt,index)=>({id:31+index,productId:1,number:`REPORT-${index}`,quantity:2,receivedAt:expiryDates[3],expiresAt}));
@@ -372,7 +404,7 @@ try{
  await reporting.getByRole('spinbutton',{name:'Demand multiplier'}).fill('-1');await reporting.getByRole('alert').waitFor();assert.equal(await reporting.getByRole('button',{name:'Print report',exact:true}).isDisabled(),true);
  await reporting.getByRole('spinbutton',{name:'Demand multiplier'}).fill('2');
  await reporting.evaluate(()=>{window.print=()=>{window.__qaPrintCalled=true;};});await reporting.getByRole('button',{name:'Print report',exact:true}).click();assert.equal(await reporting.evaluate(()=>window.__qaPrintCalled),true);
- await reportSelect.selectOption('Inventory Summary');reportInventory.products[0].stock=99;await reporting.getByRole('button',{name:'Refresh report data'}).click();await reporting.getByRole('heading',{name:'Inventory reports',exact:true}).waitFor();assert.equal(await reporting.locator('tbody tr').first().locator('td').nth(2).innerText(),'99');assert.equal(reportLoads,2);
+ await reportSelect.selectOption('Inventory Summary');reportInventory.products[0].stock=99;assert.equal(await reporting.getByRole('button',{name:'Refresh report data'}).count(),0);await reporting.getByRole('button',{name:'Refresh inventory',exact:true}).click();await reporting.getByRole('heading',{name:'Inventory reports',exact:true}).waitFor();assert.equal(await reporting.locator('tbody tr').first().locator('td').nth(2).innerText(),'99');assert.equal(reportLoads,2);
  for(const width of [1440,390]){await reporting.setViewportSize({width,height:900});await reportSelect.selectOption('Seasonal Reorder Report');assert.equal(await reporting.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`Reports overflow at ${width}`);}
  await empty.goto('http://127.0.0.1:5197/#/reports');await empty.getByRole('heading',{name:'No data for this report'}).waitFor();
  await sales.goto('http://127.0.0.1:5197/#/reports');await sales.getByRole('heading',{name:'This module is not part of your assigned workspace.'}).waitFor();
@@ -450,13 +482,18 @@ try{
   const menu=mobileLogout.locator('#workspace-navigation');
   const box=await menu.boundingBox();
   assert.ok(box.height<=viewport.height+1,'Mobile sidebar must fit the visible viewport');
-  await mobileLogout.mouse.move(box.x+box.width/2,viewport.height/2);
+  await menu.getByRole('button',{name:'Stock movements',exact:true}).click();
+  const navigation=menu.getByRole('navigation',{name:'Workspace modules'}),navigationBox=await navigation.boundingBox();
+  const footerBefore=await menu.getByRole('button',{name:'Sign out',exact:true}).boundingBox();
+  assert.ok(footerBefore.y>=0&&footerBefore.y+footerBefore.height<=viewport.height,'Sign out must be visible before scrolling navigation');
+  await mobileLogout.mouse.move(navigationBox.x+navigationBox.width/2,navigationBox.y+navigationBox.height/2);
   await mobileLogout.mouse.wheel(0,2000);
   await mobileLogout.waitForFunction(()=>{
    const sidebar=document.getElementById('workspace-navigation');
    const button=sidebar.querySelector('.profile button');
    const rect=button.getBoundingClientRect();
-   return sidebar.scrollTop>0&&rect.top>=0&&rect.bottom<=innerHeight;
+   const nav=sidebar.querySelector('nav');
+   return (nav.scrollHeight<=nav.clientHeight+1||nav.scrollTop>0)&&rect.top>=0&&rect.bottom<=innerHeight;
   });
   assert.equal(await mobileLogout.evaluate(()=>document.body.style.overflow),'hidden');
   if(process.env.QA_SCREENSHOT_DIR)await mobileLogout.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/mobile-sign-out-${viewport.width}x${viewport.height}.png`,animations:'disabled'});
@@ -553,6 +590,34 @@ try{
  await planning.goto('http://127.0.0.1:5197/#/dashboard');await planning.getByRole('heading',{name:'Stock health distribution'}).waitFor();assert.ok((await planning.locator('.activity-list').textContent()).includes('↔ 2'));assert.ok((await planning.locator('.activity-list').textContent()).includes('+3'));
  assert.ok(await planning.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Mobile chart must fit viewport');
  console.log('Trash restore/cancellation, persisted notification read state, staff restrictions, mobile layouts, dark mode, automatic refresh with edit pause, historical planning, timeline and chart passed.');
+ const preferenceWrites=[];
+ const preferencesPage=await makePage(({path,method,json})=>{if(method!=='GET')preferenceWrites.push(path);return json(200,path.endsWith('/auth/me')?{user:{...user,department:'Warehouse',roleLevel:'Staff'}}:inventory);});
+ await preferencesPage.goto('http://127.0.0.1:5197/#/dashboard');await preferencesPage.getByRole('link',{name:'Settings',exact:true}).click();await preferencesPage.getByRole('heading',{name:'Your website settings'}).waitFor();
+ const preferenceToken=await preferencesPage.evaluate(()=>sessionStorage.getItem('wba-auth-token'));
+ await preferencesPage.getByRole('radio',{name:'Large',exact:true}).check();await preferencesPage.waitForFunction(()=>getComputedStyle(document.documentElement).fontSize==='18px');
+ await preferencesPage.getByRole('radio',{name:'Reduce motion',exact:true}).check();await preferencesPage.waitForFunction(()=>document.documentElement.dataset.motion==='reduced');
+ await preferencesPage.getByRole('checkbox',{name:/Background lighting/}).uncheck();assert.equal(await preferencesPage.locator('.ambient-background').isVisible(),false);
+ await preferencesPage.getByRole('radio',{name:'Dark',exact:true}).check();await waitForTheme(preferencesPage,'dark');
+ await preferencesPage.reload();await preferencesPage.getByRole('heading',{name:'Your website settings'}).waitFor();
+ assert.equal(await preferencesPage.getByRole('radio',{name:'Large',exact:true}).isChecked(),true);assert.equal(await preferencesPage.getByRole('radio',{name:'Reduce motion',exact:true}).isChecked(),true);assert.equal(await preferencesPage.getByRole('checkbox',{name:/Background lighting/}).isChecked(),false);assert.equal(await preferencesPage.getByRole('radio',{name:'Dark',exact:true}).isChecked(),true);
+ assert.equal(await preferencesPage.locator('.page-transition').evaluate(el=>getComputedStyle(el).animationName),'none');
+ for(const viewport of [{width:320,height:480},{width:390,height:640},{width:844,height:390},{width:1440,height:900}]){await preferencesPage.setViewportSize(viewport);assert.equal(await preferencesPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'Large-text settings must fit every viewport');}
+ await preferencesPage.getByRole('link',{name:'Open Help Center',exact:true}).click();await preferencesPage.getByRole('heading',{name:'How can we help?'}).waitFor();
+ assert.equal(await preferencesPage.locator('details').filter({hasText:'Reviewing an adjustment request'}).count(),0);assert.equal(await preferencesPage.locator('a[href="#/users"]').count(),0);
+ await preferencesPage.getByRole('searchbox',{name:'Search help',exact:true}).fill('transferring');assert.equal(await preferencesPage.locator('.help-topic').count(),1);
+ await preferencesPage.locator('summary').click();await preferencesPage.getByRole('link',{name:'Open Transfers',exact:true}).waitFor();assert.match(await preferencesPage.locator('.help-topic-content').innerText(),/total warehouse stock stays the same/);
+ await preferencesPage.getByRole('searchbox',{name:'Search help',exact:true}).fill('no matching topic 123');await preferencesPage.getByRole('heading',{name:'No matching guides'}).waitFor();
+ await preferencesPage.getByRole('link',{name:'Back to Settings',exact:true}).click();await preferencesPage.getByRole('heading',{name:'Your website settings'}).waitFor();
+ await preferencesPage.getByRole('radio',{name:'Light',exact:true}).check();await preferencesPage.emulateMedia({colorScheme:'dark'});assert.equal(await preferencesPage.evaluate(()=>document.documentElement.dataset.theme),'light');
+ await preferencesPage.getByRole('radio',{name:'Device setting',exact:true}).check();await waitForTheme(preferencesPage,'dark');await preferencesPage.emulateMedia({colorScheme:'light'});await waitForTheme(preferencesPage,'light');
+ await preferencesPage.getByRole('button',{name:'Reset display preferences',exact:true}).click();await preferencesPage.waitForFunction(()=>getComputedStyle(document.documentElement).fontSize==='16px'&&document.documentElement.dataset.motion==='system'&&document.documentElement.dataset.ambient==='on');
+ assert.equal(await preferencesPage.evaluate(()=>sessionStorage.getItem('wba-auth-token')),preferenceToken);assert.deepEqual(preferenceWrites,[]);
+ const settingsDownload=preferencesPage.waitForEvent('download');await preferencesPage.getByRole('link',{name:'Download the WBA logo',exact:true}).click();assert.equal((await settingsDownload).suggestedFilename(),'wba-logo.svg');
+ await preferencesPage.close();
+ const corruptPreferences=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user}:inventory));await corruptPreferences.addInitScript(()=>localStorage.setItem('wba-display-preferences','{invalid json'));await corruptPreferences.goto('http://127.0.0.1:5197/#/settings');await corruptPreferences.getByRole('heading',{name:'Your website settings'}).waitFor();assert.equal(await corruptPreferences.getByRole('radio',{name:'Default',exact:true}).isChecked(),true);await corruptPreferences.close();
+ await unavailableStorage.goto('http://127.0.0.1:5197/#/settings');await unavailableStorage.getByRole('heading',{name:'Sign in to your workspace'}).waitFor();
+ const temporaryPreferences=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user}:inventory));await temporaryPreferences.addInitScript(()=>Object.defineProperty(window,'localStorage',{get(){throw new Error('Storage blocked');}}));await temporaryPreferences.goto('http://127.0.0.1:5197/#/settings');await temporaryPreferences.getByRole('radio',{name:'Large',exact:true}).check();await temporaryPreferences.getByRole('status').filter({hasText:'applied for this visit'}).waitFor();assert.equal(await temporaryPreferences.evaluate(()=>getComputedStyle(document.documentElement).fontSize),'18px');await temporaryPreferences.close();
+ console.log('Staff settings, saved text/theme/motion/background preferences, device theme, reset without logout, corrupt/blocked storage, role-aware Help Center search, large-text mobile layouts and WBA logo download passed.');
  console.log('Page/dialog entrance, reduced-motion fallback, keyboard cancellation and pending-button progress passed.');
  console.log('Light/dark theme, system preference, stored choice after refresh, keyboard toggle, storage fallback, dialog contrast in both modes and responsive workspace passed.');
  console.log('Unknown routes, API-backed reorder defaults, empty calculator, API alerts, and theme checks passed.');
