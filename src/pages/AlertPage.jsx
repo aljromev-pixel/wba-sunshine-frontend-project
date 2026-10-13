@@ -37,7 +37,7 @@ export function AlertPage() {
             <span>⌕</span>
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search alerts" />
           </label>
-          <select value={type} onChange={(event) => setType(event.target.value)}>
+          <select value={type} onChange={(event) => setType(event.target.value)} aria-label="Filter alert type">
             <option>All alerts</option>
             <option>Low Stock</option>
             <option>Expiring Stock</option>

@@ -9,5 +9,5 @@ export function BrandLogo({ compact = false, href = '#/' }) {
       <small>{compact ? 'Powered by Sunshine' : 'Powered by Sunshine team'}</small>
     </span>
   </>
-  return href ? <a className={className} href={href} aria-label="WBA home">{content}</a> : <div className={className} aria-label="WBA, powered by Sunshine team">{content}</div>
+  return href ? <a className={className} href={href}>{content}</a> : <div className={className}>{content}</div>
 }

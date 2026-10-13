@@ -161,7 +161,7 @@ export function Reports() {
       <h3 className="report-title">{type}</h3>
       {!valid ? <FormError>Enter a demand multiplier and safety percentage between 0 and 100.</FormError> : !datesValid ? <FormError>The end date must be on or after the start date.</FormError> : <>
         <p>{report.description}</p>
-        <div className="table-wrap"><table>
+        <div className="table-wrap" tabIndex={0} role="region" aria-label={`${type} report table`}><table>
           <thead><tr>{report.columns.map((column) => <th key={column} scope="col">{column}</th>)}</tr></thead>
           <tbody>{report.rows.map((row) => <tr key={row.id}>{row.values.map((value, index) => <td key={report.columns[index]}>{report.columns[index] === 'Status' ? <StatusBadge>{value ?? '—'}</StatusBadge> : value ?? '—'}</td>)}</tr>)}</tbody>
         </table></div>
@@ -197,7 +197,7 @@ export function AuditTrail() {
             />
           </label>
         </div>
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label="Audit trail table">
           <table>
             <thead>
               <tr>
@@ -314,7 +314,7 @@ export function Users() {
         {loading && <p role="status">Loading users…</p>}
         <FormError>{loadError}</FormError>
         {loadError && <AsyncButton type="button" className="button primary" loading={loading} loadingLabel="Retrying…" onClick={load}>Retry loading users</AsyncButton>}
-        <div className="table-wrap" aria-busy={loading}>
+        <div className="table-wrap" aria-busy={loading} tabIndex={0} role="region" aria-label="User accounts table">
           <table>
             <thead>
               <tr>

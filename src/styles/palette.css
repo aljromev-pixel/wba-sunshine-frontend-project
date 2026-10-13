@@ -216,7 +216,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--focus); box-shad
 .confirm-dialog h2, .confirm-dialog p { overflow-wrap: anywhere; }
 .toast { color: var(--success-text); max-width: min(420px, calc(100vw - 2rem)); overflow-wrap: anywhere; line-height: 1.5; }
 .toast.error { color: var(--danger-text); }
-input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, .table-wrap:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 @media (max-width: 900px) {
   .settings-grid { grid-template-columns: minmax(0, 1fr); }
   .topbar { display: grid; grid-template-columns: minmax(0, 1fr); gap: .85rem; align-items: start; }

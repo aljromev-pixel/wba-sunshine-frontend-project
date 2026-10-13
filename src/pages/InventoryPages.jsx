@@ -121,7 +121,7 @@ export function InventoryList() {
             <option value="status">Sort: Status</option>
           </select>
         </div>
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label="Product inventory table">
           <table>
             <thead>
               <tr>
@@ -385,7 +385,7 @@ export function Batches() {
               placeholder="Search batch or product"
             />
           </label>
-          <select value={filter} onChange={(event) => setFilter(event.target.value)}>
+          <select value={filter} onChange={(event) => setFilter(event.target.value)} aria-label="Filter batch status">
             <option>All batches</option>
             <option>Available</option>
             <option>Expiring soon</option>
@@ -398,7 +398,7 @@ export function Batches() {
           const used = lifetime > 0 ? Math.max(0, Math.min(100, (1 - daysUntil(batch.expiresAt) / lifetime) * 100)) : 0
           return <article key={batch.id}><strong>{batch.number}</strong><small>{data.products.find(product => product.id === batch.productId)?.name} · {batch.location || 'Main warehouse'}</small><StatusBadge>{getBatchStatus(batch)}</StatusBadge>{batch.expiresAt ? <><progress aria-label={`${batch.number} shelf life elapsed`} value={used} max="100" /><small>Received {formatDate(batch.receivedAt)} → expires {formatDate(batch.expiresAt)} · {daysUntil(batch.expiresAt)} days remaining</small></> : <small>Received {formatDate(batch.receivedAt)} · no expiry recorded</small>}</article>
         })}</div>
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0} role="region" aria-label="Batch inventory table">
           <table>
             <thead>
               <tr>
