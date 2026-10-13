@@ -1,5 +1,6 @@
-import { fifoBatch } from '../utils/inventoryLogic'
+import { fifoBatch, setWarehouseTimezone } from '../utils/inventoryLogic'
 import { apiClient } from './apiClient'
+import { inventoryWrite, clearInventoryWrites } from './writeRequests'
 
 const clone = (value) => JSON.parse(JSON.stringify(value))
 const emptyState = { products: [], batches: [], transactions: [], adjustments: [], audit: [], alerts: [] }
@@ -8,6 +9,7 @@ let listeners = []
 let loadErrorListeners = []
 let generation = 0
 let loadSequence = 0
+let reportHistoryLoading
 const emit = () => listeners.forEach((listener) => listener(clone(state)))
 const normalizeIds = (inventory) => ({
   ...inventory,
@@ -23,6 +25,7 @@ const normalizeIds = (inventory) => ({
   audit: inventory.audit.map((item) => ({ ...item, id: String(item.id) })),
 })
 const applyState = (nextState) => {
+  setWarehouseTimezone(nextState.warehouseTimezone)
   state = { ...emptyState, ...nextState }
   emit()
 }
@@ -58,22 +61,54 @@ export const inventoryService = {
       if (currentGeneration === generation) loadErrorListeners.forEach((listener) => listener(exception))
     }
   },
-  async move({ type, productId, quantity, batchId, reference }) {
-    const response = await apiClient.post('/v1/inventory/movements', {
+  async loadMoreHistory(section) {
+    const info = state.history?.[section]
+    if (!info?.nextPage) return
+    const currentGeneration = generation
+    const currentLoad = loadSequence
+    const response = await apiClient.get(`/v1/inventory/history/${section}?page=${info.nextPage}&throughId=${info.throughId}`)
+    if (currentGeneration !== generation || currentLoad !== loadSequence) return
+    const next = normalizeIds({ ...state, [section]: [...state[section], ...response.data] })
+    next[section] = [...new Map(next[section].map(item => [item.id, item])).values()]
+    next.history = { ...state.history, [section]: { ...info, nextPage: response.meta.current_page < response.meta.last_page ? response.meta.current_page + 1 : null } }
+    applyState(next)
+  },
+  loadReportHistory() {
+    if (!reportHistoryLoading) {
+      const currentGeneration = generation
+      reportHistoryLoading = (async () => {
+        for (const section of ['transactions', 'adjustments']) {
+          while (currentGeneration === generation && state.history?.[section]?.nextPage) await this.loadMoreHistory(section)
+        }
+      })().finally(() => { if (currentGeneration === generation) reportHistoryLoading = undefined })
+    }
+    return reportHistoryLoading
+  },
+  async productHistory(id) {
+    const response = await apiClient.get(`/v1/inventory/history/transactions?throughId=${state.history.transactions.throughId}&productId=${id}`)
+    return normalizeIds({ ...state, transactions: response.data }).transactions
+  },
+  async move({ type, productId, quantity, batchId, reference, destinationLocation, returnCondition, location, batchNumber, expiresAt }) {
+    const response = await inventoryWrite('/v1/inventory/movements', {
       type,
       productId: Number(productId),
       batchId: batchId === 'new' ? null : Number(batchId),
       quantity: Number(quantity),
       reference,
+      ...(type === 'Transfer' ? { destinationLocation } : {}),
+      ...(type === 'Return' ? { returnCondition } : {}),
+      ...(type === 'Stock In' && batchId === 'new' ? { location, batchNumber: batchNumber || undefined, expiresAt: expiresAt || null } : {}),
     })
     await this.refreshAfterWrite()
     return response.data
   },
-  async submitAdjustment({ productId, requestedQty, reason }) {
-    const response = await apiClient.post('/v1/inventory/adjustments', {
+  async submitAdjustment({ productId, requestedQty, reason, batchCounts, expectedStockVersion }) {
+    const response = await inventoryWrite('/v1/inventory/adjustments', {
       productId: Number(productId),
       requestedQty: Number(requestedQty),
       reason,
+      ...(batchCounts ? { batchCounts } : {}),
+      ...(expectedStockVersion === undefined ? {} : { expectedStockVersion }),
     })
     await this.refreshAfterWrite()
     return response.data
@@ -113,6 +148,8 @@ export const inventoryService = {
   },
   reset() {
     generation += 1
+    reportHistoryLoading = undefined
+    clearInventoryWrites()
     applyState(emptyState)
   },
 }

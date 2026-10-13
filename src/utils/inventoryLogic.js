@@ -1,7 +1,13 @@
-export const today = () => {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+let warehouseTimezone = 'Asia/Manila'
+export const setWarehouseTimezone = value => {
+  if (value) { new Intl.DateTimeFormat('en', { timeZone: value }); warehouseTimezone = value }
 }
+export const warehouseDate = (value = new Date()) => {
+  const parts = new Intl.DateTimeFormat('en', { timeZone: warehouseTimezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(value))
+  const part = type => parts.find(item => item.type === type).value
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
+export const today = () => warehouseDate()
 export const isExpired = (date) => Boolean(date) && date < today()
 export const daysUntil = (date) => {
   const calendarDay = (value) => {

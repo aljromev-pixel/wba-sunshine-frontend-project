@@ -6,11 +6,12 @@ let authTokenProvider = null
 let unauthorizedHandler = null
 
 export class ApiError extends Error {
-  constructor(message, { status = null, data = null } = {}) {
+  constructor(message, { status = null, data = null, uncertain = false } = {}) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.data = data
+    this.uncertain = uncertain
   }
 }
 
@@ -54,6 +55,7 @@ const errorMessage = (data, fallback) => {
 export async function request(path, { method = 'GET', body, headers = {}, signal, timeoutMs = apiTimeoutMs } = {}) {
   const url = requestUrl(path)
   const token = authTokenProvider ? await authTokenProvider() : null
+  const isWrite = method !== 'GET' && !String(path).endsWith('/auth/login')
   const requestHeaders = { Accept: 'application/json', ...headers }
 
   if (body !== undefined) requestHeaders['Content-Type'] = 'application/json'
@@ -84,14 +86,15 @@ export async function request(path, { method = 'GET', body, headers = {}, signal
       throw new ApiError(errorMessage(data, `API request failed with status ${response.status}.`), {
         status: response.status,
         data,
+        uncertain: isWrite && response.status >= 500,
       })
     }
     return data
   } catch (error) {
-    if (timedOut) throw new ApiError('The API request timed out. Please try again.')
+    if (timedOut) throw new ApiError('The API request timed out.', { uncertain: isWrite })
     if (error instanceof ApiError || error.name === 'AbortError') throw error
-    if (error instanceof SyntaxError) throw new ApiError('The API returned an invalid response. Please try again.')
-    throw new ApiError('Unable to reach the API. Check your network connection and API configuration.')
+    if (error instanceof SyntaxError) throw new ApiError('The API returned an invalid response.', { uncertain: isWrite })
+    throw new ApiError('Unable to reach the API. Check your network connection and API configuration.', { uncertain: isWrite })
   } finally {
     clearTimeout(timer)
     signal?.removeEventListener('abort', cancel)

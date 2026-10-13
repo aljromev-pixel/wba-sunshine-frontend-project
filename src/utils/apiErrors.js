@@ -1,4 +1,5 @@
 export const apiErrorMessage = (exception) => {
+  if (exception?.uncertain) return `${exception.message} The change may have saved. Keep the same details when retrying an inventory movement or count, or refresh to verify before submitting another change.`
   const errors = exception?.data?.errors
 
   if (errors) {
