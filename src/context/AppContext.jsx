@@ -16,6 +16,7 @@ export function AppProvider({ children }) {
   const [authLoading, setAuthLoading] = useState(() => Boolean(sessionStorage.getItem(tokenKey)))
   const [inventoryLoading, setInventoryLoading] = useState(false)
   const [inventoryError, setInventoryError] = useState('')
+  const [backgroundError, setBackgroundError] = useState('')
   const [authError, setAuthError] = useState('')
   const [restoreAttempt, setRestoreAttempt] = useState(0)
   const sessionVersion = useRef(0)
@@ -23,6 +24,7 @@ export function AppProvider({ children }) {
     const version = sessionVersion.current
     setInventoryLoading(true)
     setInventoryError('')
+    setBackgroundError('')
     try {
       await inventoryService.load()
     } catch (exception) {
@@ -33,6 +35,24 @@ export function AppProvider({ children }) {
   }, [])
 
   useEffect(() => inventoryService.subscribe(setData), [])
+  useEffect(() => {
+    if (!user || user.mustChangePassword) return
+    let active = true, pending = false
+    const refresh = async () => {
+      if (pending || document.hidden || document.querySelector('form, [role="dialog"]')) return
+      pending = true
+      try {
+        await inventoryService.load()
+        if (active) setBackgroundError('')
+      } catch (error) {
+        if (active) setBackgroundError(`Automatic refresh failed. ${apiErrorMessage(error)}`)
+      } finally { pending = false }
+    }
+    const timer = window.setInterval(refresh, 30000)
+    const visible = () => { if (!document.hidden) refresh() }
+    document.addEventListener('visibilitychange', visible)
+    return () => { active = false; window.clearInterval(timer); document.removeEventListener('visibilitychange', visible) }
+  }, [user?.id, user?.mustChangePassword])
   useEffect(() => inventoryService.subscribeLoadError((exception) => {
     if (sessionStorage.getItem(tokenKey)) setInventoryError(`Your change was saved, but inventory could not be refreshed. Retry loading inventory. ${apiErrorMessage(exception)}`)
   }), [])
@@ -104,6 +124,7 @@ export function AppProvider({ children }) {
       },
       inventoryLoading,
       inventoryError,
+      backgroundError,
       retryInventory: loadInventory,
       data,
       alerts: inventoryService.alerts(),
@@ -129,7 +150,7 @@ export function AppProvider({ children }) {
         }
       },
     }),
-    [user, authLoading, authError, inventoryLoading, inventoryError, loadInventory, authenticate, data, notice]
+    [user, authLoading, authError, inventoryLoading, inventoryError, backgroundError, loadInventory, authenticate, data, notice]
   )
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
 }

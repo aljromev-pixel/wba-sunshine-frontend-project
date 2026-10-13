@@ -10,6 +10,8 @@ import { Batches, InventoryList, ProductDetails } from './pages/InventoryPages'
 import { Adjustments, CycleCount, MovementForm } from './pages/WorkflowPages'
 import { AuditTrail, ReorderCalculator, Reports, Users } from './pages/OperationsPages'
 import { AlertPage as Alerts } from './pages/AlertPage'
+import { TrashPage } from './pages/TrashPage'
+import { NotificationsPage } from './pages/NotificationsPage'
 
 const permissions = {
   '/inventory': PERMISSIONS.INVENTORY_VIEW,
@@ -25,6 +27,7 @@ const permissions = {
   '/reports': PERMISSIONS.REPORTS_VIEW,
   '/audit-trail': PERMISSIONS.AUDIT_VIEW,
   '/users': PERMISSIONS.USERS_MANAGE,
+  '/trash': [PERMISSIONS.INVENTORY_EDIT, PERMISSIONS.USERS_MANAGE],
 }
 function NotFound() {
   return (
@@ -107,6 +110,10 @@ export default function App() {
       <AuditTrail />
     ) : path === '/users' ? (
       <Users />
+    ) : path === '/trash' ? (
+      <TrashPage />
+    ) : path === '/notifications' ? (
+      <NotificationsPage />
     ) : (
       <NotFound />
     )

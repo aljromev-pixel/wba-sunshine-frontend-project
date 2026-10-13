@@ -14,16 +14,18 @@ const nav = [
   { href: '/cycle-count', label: 'Cycle Count', icon: '✓', permission: PERMISSIONS.CYCLE_COUNT },
   { href: '/adjustments', label: 'Adjustments', icon: '±', permission: [PERMISSIONS.ADJUSTMENT_REQUEST, PERMISSIONS.ADJUSTMENT_APPROVE] },
   { href: '/alerts', label: 'Alerts', icon: '!', permission: PERMISSIONS.ALERTS_VIEW },
+  { href: '/notifications', label: 'Notifications', icon: '◉' },
   { href: '/reorder-calculator', label: 'Reorder Calculator', icon: '⌁', permission: PERMISSIONS.REORDER_CALCULATE },
   { href: '/reports', label: 'Reports', icon: '▧', permission: PERMISSIONS.REPORTS_VIEW },
   { href: '/audit-trail', label: 'Audit Trail', icon: '◷', permission: PERMISSIONS.AUDIT_VIEW },
   { href: '/users', label: 'User Management', icon: '♙', permission: PERMISSIONS.USERS_MANAGE },
+  { href: '/trash', label: 'Trash bin', icon: '▱', permission: [PERMISSIONS.INVENTORY_EDIT, PERMISSIONS.USERS_MANAGE] },
 ]
 const title = (path) =>
   nav.find((item) => item.href === path)?.label || (path.startsWith('/inventory/') ? 'Product Details' : 'Sunshine')
 
 export function AppLayout({ path, children }) {
-  const { user, can, logout, notice, data, retryInventory, inventoryLoading } = useApp()
+  const { user, can, logout, notice, data, retryInventory, inventoryLoading, backgroundError } = useApp()
   const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 900px)').matches)
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -115,6 +117,7 @@ export function AppLayout({ path, children }) {
           </div>
           <div className="topbar-actions">
             <ThemeToggle />
+            <a className="notification-trigger" href="#/notifications" aria-label={`Notifications, ${data.notificationSummary?.unreadCount || 0} unread`}><span aria-hidden="true">◉</span><span className="notification-count">{data.notificationSummary?.unreadCount > 99 ? '99+' : data.notificationSummary?.unreadCount || 0}</span></a>
             <button className="header-user" onClick={() => go('/dashboard')} aria-label="Open dashboard">
               <span className="profile-trigger">{user.initials}</span>
               <span>
@@ -127,6 +130,7 @@ export function AppLayout({ path, children }) {
           </div>
         </header>
         {data.loadedAt && <div className="form-actions"><small>Inventory snapshot: {new Date(data.loadedAt).toLocaleString(undefined, { timeZone: data.warehouseTimezone || 'Asia/Manila' })} · {data.warehouseTimezone || 'Asia/Manila'}</small><button type="button" className="inline-button" disabled={inventoryLoading} onClick={retryInventory}>Refresh inventory</button></div>}
+        {data.loadedAt && <p className="refresh-status" role="status">{backgroundError || 'Updates every 30 seconds while visible; paused when a form or dialog is open.'}</p>}
         {notice && <div className={`toast ${notice.tone}`}>{notice.message}</div>}
         {children}
       </main>
