@@ -64,6 +64,8 @@ body, .application, .main-content, .public-page, .login-page { background: var(-
   background: var(--surface); color: var(--text); font-size: .8rem; font-weight: 600; white-space: nowrap;
 }
 .theme-toggle:hover { background: var(--surface-raised); }
+.workspace-content { width: 100%; max-width: 1450px; margin-inline: auto; min-width: 0; }
+.refresh-status { margin: .65rem 0 1.25rem; }
 .topbar-actions { display: flex; align-items: center; gap: 1rem; }
 .auth-actions { display: flex; justify-content: flex-end; margin-bottom: 1.2rem; }
 .login-card { width: min(100% - 2rem, 530px); }

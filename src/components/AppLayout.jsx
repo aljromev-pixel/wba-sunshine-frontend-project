@@ -105,6 +105,7 @@ export function AppLayout({ path, children }) {
         </div>
       </aside>
       <main className="main-content" inert={mobile && open}>
+        <div className="workspace-content">
         <header className="topbar">
           <div className="workspace-heading">
             {!visible && <button ref={toggle} type="button" className={`sidebar-toggle ${visible ? 'is-open' : ''}`} aria-label={mobile ? 'Open navigation' : visible ? 'Collapse navigation' : 'Expand navigation'} aria-expanded={visible} aria-controls="workspace-navigation" onClick={() => mobile ? setOpen(value => !value) : setCollapsed(value => !value)}>
@@ -133,6 +134,7 @@ export function AppLayout({ path, children }) {
         {data.loadedAt && <p className="refresh-status" role="status">{backgroundError || 'Updates every 30 seconds while visible; paused when a form or dialog is open.'}</p>}
         {notice && <div className={`toast ${notice.tone}`}>{notice.message}</div>}
         {children}
+        </div>
       </main>
     </div>
   )
