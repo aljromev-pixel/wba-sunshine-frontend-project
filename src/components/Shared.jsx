@@ -1,4 +1,5 @@
 import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { apiErrorMessage } from '../utils/apiErrors'
 
 export function useFormFeedback() {
@@ -62,8 +63,17 @@ export function ConfirmDialog({ title = 'Confirm action', message, confirmLabel 
   const pending = useRef(false)
   useEffect(() => {
     const previousFocus = document.activeElement
+    const previousOverflow = document.body.style.overflow
+    const workspace = document.querySelector('.application')
+    const previousInert = workspace?.inert
+    document.body.style.overflow = 'hidden'
+    if (workspace) workspace.inert = true
     dialog.current.querySelector('button').focus()
-    return () => { if (previousFocus?.isConnected) previousFocus.focus() }
+    return () => {
+      document.body.style.overflow = previousOverflow
+      if (workspace) workspace.inert = previousInert
+      if (previousFocus?.isConnected) previousFocus.focus()
+    }
   }, [])
   useEffect(() => {
     const handleKey = (event) => {
@@ -101,7 +111,7 @@ export function ConfirmDialog({ title = 'Confirm action', message, confirmLabel 
       setLoading(false)
     }
   }
-  return <div className="confirm-overlay" role="presentation">
+  return createPortal(<div className="confirm-overlay" role="presentation">
     <section ref={dialog} tabIndex={-1} className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={messageId} aria-busy={loading}>
       <h2 id={titleId}>{title}</h2>
       <p id={messageId}>{message}</p>
@@ -111,7 +121,7 @@ export function ConfirmDialog({ title = 'Confirm action', message, confirmLabel 
         <AsyncButton type="button" className={`button ${tone === 'danger' ? 'danger' : 'primary'}`} onClick={confirm} loading={loading} loadingLabel="Processing…">{confirmLabel}</AsyncButton>
       </div>
     </section>
-  </div>
+  </div>, document.body)
 }
 export const formatDate = (date, withTime = false) =>
   new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', ...(withTime ? { timeStyle: 'short' } : {}) }).format(
