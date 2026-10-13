@@ -5,7 +5,6 @@ export function BrandLogo({ compact = false, href = '#/' }) {
   const content = <>
     <WbaEmblem className="wba-mark" />
     <span className="wba-brand-copy">
-      <strong>WBA</strong>
       {!compact && <span>WalangBrownout Appliances</span>}
       <small>{compact ? 'Powered by Sunshine' : 'Powered by Sunshine team'}</small>
     </span>

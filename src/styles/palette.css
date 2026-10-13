@@ -48,16 +48,15 @@
 :root[data-text-size='large'] { font-size: 112.5%; }
 .wba-brand { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: .65rem; color: var(--text); text-decoration: none; max-width: 100%; }
 .wba-emblem { display: block; flex-shrink: 0; width: 100%; height: 100%; }
+.wba-wordmark { display: block; width: 3.25em; height: auto; max-width: 100%; }
 .wba-mark { width: 44px; height: 44px; }
 .wba-brand-copy { display: grid; gap: .2rem; min-width: 0; }
-.wba-brand-copy strong { font-size: 1.6rem; line-height: 1.1; letter-spacing: -.04em; }
 .wba-brand-copy > span { font-size: .75rem; line-height: 1.4; overflow-wrap: anywhere; }
 .wba-brand-copy small { font-size: .6875rem; line-height: 1.4; color: var(--muted); }
 .login-brand > .wba-brand { margin-bottom: 1.7rem; }
 .brand > .wba-brand { grid-column: 1; grid-row: 1 / 3; }
 .wba-brand-compact { gap: .5rem; }
 .wba-brand-compact .wba-mark { width: 36px; height: 36px; }
-.wba-brand-compact .wba-brand-copy strong { font-size: 1.35rem; }
 .sidebar .brand .wba-brand-copy small { font-size: .625rem; letter-spacing: 0; color: var(--muted); }
 .profile-actions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
 .profile-action { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: .5rem; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-raised); color: var(--text); font-size: .8125rem; font-weight: 600; }
@@ -147,13 +146,12 @@ body, .application, .main-content, .public-page, .login-page { background: var(-
 :root[data-theme='light'] .flashlight-rays { opacity: 1; }
 .sun-icon { display: block; width: 100%; height: 100%; flex-shrink: 0; }
 .login-sun { padding: 8px; flex-shrink: 0; line-height: 0; }
-.public-orbit { padding: 17px; line-height: 0; }
 .loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; }
 .loading-state .loading-logo { display: grid; place-items: center; width: 88px; height: 88px; padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; animation: none; }
 .loading-state p { margin: 0; line-height: 1.5; }
 .loading-screen { min-height: 100svh; padding: 1.5rem; }
 .loading-screen .loading-logo { width: 128px; height: 128px; }
-.loading-brand { display: grid; gap: .4rem; text-align: center; }
+.loading-brand { display: grid; justify-items: center; gap: .4rem; text-align: center; }
 .loading-brand strong { color: var(--text); font-size: 1.75rem; line-height: 1.1; letter-spacing: -.04em; }
 .loading-brand small { color: var(--muted); font-size: .75rem; line-height: 1.5; }
 .button-spinner.sun-icon { width: 1em; height: 1em; border: 0; border-radius: 0; }
@@ -172,7 +170,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--focus); box-shad
 .public-visual { border-radius: 12px; box-shadow: none; }
 .public-features article { border-radius: 10px; }
 .metric-grid article, .surface { box-shadow: none; }
-.public-orbit, .login-sun { background: var(--accent-soft); }
+.login-sun { background: var(--accent-soft); }
 .public-header .public-back:hover { color: var(--accent-text); }
 .workspace-heading { flex: 1 1 auto; }
 .workspace-title h1 { overflow-wrap: anywhere; line-height: 1.25; }

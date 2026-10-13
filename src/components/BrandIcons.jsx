@@ -1,3 +1,19 @@
+const wbaLetterPaths = [
+  'M0 0H7L9.5 12.5L2.2 8.5Z M3.1 13.5L10.5 17.5L12.3 26L17 12H21L26 26L30 0H37L31 36H24L19 25L14 36H7Z',
+  'M43 0H64L73 8V15L68 18L74 23V29L67 36H43Z M51 7V14H61L65 11V10L62 7Z M51 22V29H63L66 26V25L63 22Z',
+  'M92 0H99L114 36H105L95.5 12L85 36H76Z M89 24H101L104 31H86Z',
+]
+
+function WbaLettering() {
+  return <><title>WBA</title>{wbaLetterPaths.map((d, index) => <path key={index} d={d} fillRule={index === 2 ? 'nonzero' : 'evenodd'} />)}</>
+}
+
+export function WbaWordmark() {
+  return <svg className="wba-wordmark" viewBox="0 0 114 36" width="114" height="36" fill="currentColor" fillRule="evenodd" aria-hidden="true" focusable="false">
+    <WbaLettering />
+  </svg>
+}
+
 export function WbaEmblem({ className = '' }) {
   return <svg className={`wba-emblem ${className}`.trim()} viewBox="0 0 128 128" aria-hidden="true" focusable="false">
     <g className="wba-sun-rays">
@@ -8,7 +24,7 @@ export function WbaEmblem({ className = '' }) {
     </g>
     <circle cx="64" cy="64" r="43" fill="#242521" stroke="#e4b735" strokeWidth="2.5" />
     <circle cx="64" cy="64" r="38.5" fill="none" stroke="#f3f2ee" strokeOpacity=".25" />
-    <text className="wba-sun-lettering" x="64" y="74" textAnchor="middle" fontFamily="Georgia, 'Times New Roman', serif" fontSize="29" fontWeight="700" letterSpacing="-1" fill="#f3f2ee">WBA</text>
+    <g className="wba-sun-lettering" transform="translate(28 52.632) scale(.631579)" fill="#f3f2ee" fillRule="evenodd"><WbaLettering /></g>
   </svg>
 }
 
