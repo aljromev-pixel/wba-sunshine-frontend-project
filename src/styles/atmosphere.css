@@ -63,7 +63,7 @@
 }
 @media (max-width: 520px) {
   .workspace-heading { gap: .5rem; }
-  .workspace-title h1 { font-size: 1rem; }
+  .workspace-title h1 { font-size: 1.125rem; }
   .breadcrumb { letter-spacing: .08em; }
   .ambient-glow { width: 110vw; height: 110vw; }
 }

@@ -74,11 +74,73 @@ input:focus, select:focus, textarea:focus { border-color: var(--focus); box-shad
 .metric-grid article, .surface { box-shadow: none; }
 .public-orbit, .login-sun { background: var(--accent-soft); }
 .public-header .public-back:hover { color: var(--accent-text); }
+.workspace-heading { flex: 1 1 auto; }
+.workspace-title h1 { overflow-wrap: anywhere; line-height: 1.25; }
+.breadcrumb { font-size: .75rem; line-height: 1.5; letter-spacing: .08em; }
+.header-user { min-width: 0; }
+.header-user strong { font-size: .875rem; max-width: 14rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.header-user small { font-size: .75rem; }
+.topbar-actions { flex-shrink: 0; }
+.inventory-refresh { gap: .75rem; align-items: center; }
+.inventory-refresh small { min-width: 0; font-size: .75rem; line-height: 1.5; overflow-wrap: anywhere; }
+.inventory-refresh button { flex-shrink: 0; }
+.surface, .form-grid, .section-heading > div, .compact-list > div > div, .activity-list > div > div, .health-list > div > div { min-width: 0; }
+.form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.transaction-form label, .compact-form label, .count-card > label, .form-grid label { min-width: 0; font-size: .875rem; line-height: 1.5; }
+.transaction-form input, .transaction-form select, .compact-form input, .compact-form select, .compact-form textarea, .count-card input, .count-card select, .search-field input { min-width: 0; font-size: 1rem; }
+.metric-grid small, .metric-grid span, .muted, .activity-list small, .health-list small, .compact-list small, td small, .refresh-status { font-size: .75rem; line-height: 1.5; }
+.compact-list strong, .activity-list strong, .health-list strong { font-size: .875rem; line-height: 1.5; overflow-wrap: anywhere; }
+.alert-list article { grid-template-columns: auto minmax(0, 1fr) auto; }
+.alert-list strong { font-size: .875rem; overflow-wrap: anywhere; }
+.alert-list p, .alert-list small, .alert-list a, .formula-note { font-size: .75rem; line-height: 1.5; overflow-wrap: anywhere; }
+.page-intro p:not(.eyebrow), .detail-hero p:not(.eyebrow) { font-size: .875rem; }
+.form-error, .success-note, .formula-results small, .formula-results span { font-size: .8125rem; line-height: 1.5; overflow-wrap: anywhere; }
+.status { font-size: .75rem; flex-shrink: 0; }
+.status.depleted, .status.info { background: var(--surface-raised); color: var(--muted); border-color: var(--border); }
+.inline-button, .review-actions button, .filter-bar select { font-size: .8125rem; }
+.inline-button, .review-actions button { min-height: 44px; }
+.table-actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; min-width: 150px; }
+.table-actions .row-link { display: inline-flex; align-items: center; min-height: 44px; }
+.compact-list small, .health-list small, .activity-list small, .workspace-record small { overflow-wrap: anywhere; }
+.compact-list > div > div:last-child { flex-shrink: 0; }
+.adjustment-row > div:last-child { max-width: 45%; }
+.review-actions { flex-wrap: wrap; }
+.activity-list .movement-icon { flex-shrink: 0; }
+.activity-list b { white-space: nowrap; flex-shrink: 0; }
+.activity-list b[data-direction='decrease'] { color: var(--danger-text); }
+.activity-list b[data-direction='neutral'] { color: var(--muted); }
+.chart-meter { height: .8rem; border-radius: 1rem; overflow: hidden; background: var(--surface-raised); border: 1px solid var(--border); }
+.chart-meter > span { display: block; height: 100%; background: var(--success-text); }
+.chart-meter.low-stock > span { background: var(--danger-text); }
+.chart-meter.near-capacity > span { background: var(--accent); }
+.confirm-overlay { z-index: 60; padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom)); }
+.confirm-dialog { max-width: 100%; overscroll-behavior: contain; }
+.confirm-dialog h2, .confirm-dialog p { overflow-wrap: anywhere; }
+.toast { color: var(--success-text); max-width: min(420px, calc(100vw - 2rem)); overflow-wrap: anywhere; line-height: 1.5; }
+.toast.error { color: var(--danger-text); }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 900px) {
+  .topbar { display: grid; grid-template-columns: minmax(0, 1fr); gap: .85rem; align-items: start; }
+  .workspace-heading { width: 100%; }
+  .topbar-actions { justify-content: flex-end; width: 100%; }
+}
+@media (max-width: 700px) {
+  .inventory-refresh { align-items: flex-start; flex-direction: column; }
+  .alert-list article { grid-template-columns: auto minmax(0, 1fr); }
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .compact-list > .adjustment-row { align-items: stretch; flex-direction: column; gap: .75rem; }
+  .adjustment-row > div:last-child { max-width: 100%; }
+  .review-actions { width: 100%; }
+  .review-actions button { flex: 1; padding: .65rem .85rem; }
+  .section-heading { flex-wrap: wrap; align-items: start; }
+  .section-heading a { min-height: 32px; display: inline-flex; align-items: center; }
+  .stock-chart > div { font-size: .875rem; }
+}
 @media (max-width: 520px) {
   .topbar-actions { gap: .4rem; }
   .topbar .theme-toggle { padding-inline: .5rem; font-size: .72rem; }
   .topbar h1 { font-size: 1.15rem; }
-  .breadcrumb { font-size: .55rem; }
+  .breadcrumb { font-size: .75rem; }
   .public-header nav { justify-content: flex-start; }
 }
 @media print {

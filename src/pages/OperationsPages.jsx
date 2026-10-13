@@ -332,10 +332,10 @@ export function Users() {
                   <td>{u.department}</td>
                   <td>{u.roleLevel}</td><td>{u.isActive === false ? 'Disabled' : u.mustChangePassword ? 'Password setup required' : 'Active'}</td>
                   <td>
-                    {protectedAdmin(u) ? <span className="muted">Protected administrator</span> : <>
+                    {protectedAdmin(u) ? <span className="muted">Protected administrator</span> : <div className="table-actions">
                       <button className="inline-button" disabled={submitting} onClick={() => openEditor(u)}>Edit</button>
                       <button className="inline-button" disabled={submitting || String(u.id) === String(currentUser.id)} onClick={() => setConfirmation(u)}>Delete</button>
-                    </>}
+                    </div>}
                   </td>
                 </tr>
               ))}

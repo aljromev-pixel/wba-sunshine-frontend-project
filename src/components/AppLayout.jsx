@@ -111,7 +111,7 @@ export function AppLayout({ path, children }) {
               <span /><span /><span />
             </button>}
             <div className="workspace-title">
-            <p className="breadcrumb">SUNSHINE / INVENTORY WORKSPACE</p>
+            <p className="breadcrumb">SUNSHINE / WORKSPACE</p>
             <h1>{title(path)}</h1>
             </div>
           </div>
@@ -121,7 +121,7 @@ export function AppLayout({ path, children }) {
             <button className="header-user" onClick={() => go('/dashboard')} aria-label="Open dashboard">
               <span className="profile-trigger">{user.initials}</span>
               <span>
-                <strong>{user.name}</strong>
+                <strong title={user.name}>{user.name}</strong>
                 <small>
                   {user.department} • {user.roleLevel}
                 </small>
@@ -129,7 +129,7 @@ export function AppLayout({ path, children }) {
             </button>
           </div>
         </header>
-        {data.loadedAt && <div className="form-actions"><small>Inventory snapshot: {new Date(data.loadedAt).toLocaleString(undefined, { timeZone: data.warehouseTimezone || 'Asia/Manila' })} · {data.warehouseTimezone || 'Asia/Manila'}</small><button type="button" className="inline-button" disabled={inventoryLoading} onClick={retryInventory}>Refresh inventory</button></div>}
+        {data.loadedAt && <div className="form-actions inventory-refresh"><small>Inventory snapshot: {new Date(data.loadedAt).toLocaleString(undefined, { timeZone: data.warehouseTimezone || 'Asia/Manila' })} · {data.warehouseTimezone || 'Asia/Manila'}</small><button type="button" className="inline-button" disabled={inventoryLoading} onClick={retryInventory}>Refresh inventory</button></div>}
         {data.loadedAt && <p className="refresh-status" role="status">{backgroundError || 'Updates every 30 seconds while visible; paused when a form or dialog is open.'}</p>}
         {notice && <div className={`toast ${notice.tone}`}>{notice.message}</div>}
         {children}

@@ -152,12 +152,12 @@ export function InventoryList() {
                   <td>
                     <StatusBadge>{getStockStatus(item)}</StatusBadge>
                   </td>
-                  <td>
+                  <td><div className="table-actions">
                     <a className="row-link" href={`#/inventory/${item.id}`}>
                       Details →
                     </a>
                     {manage && <><button className="inline-button" disabled={saving} onClick={() => { setEditing(item); setCreating(false) }}>Edit</button><button className="inline-button" disabled={saving} onClick={() => setConfirmation(item)}>Delete</button></>}
-                  </td>
+                  </div></td>
                 </tr>
               ))}
             </tbody>
@@ -438,7 +438,7 @@ export function Batches() {
                     <td>
                       <StatusBadge>{getBatchStatus(batch)}</StatusBadge>
                     </td>
-                    {manage && <td><button className="inline-button" disabled={saving} onClick={() => { setEditing(batch); setCreating(false) }}>Edit</button><button className="inline-button" disabled={saving} onClick={() => setConfirmation(batch)}>Delete</button></td>}
+                    {manage && <td><div className="table-actions"><button className="inline-button" disabled={saving} onClick={() => { setEditing(batch); setCreating(false) }}>Edit</button><button className="inline-button" disabled={saving} onClick={() => setConfirmation(batch)}>Delete</button></div></td>}
                   </tr>
                 )
               })}
