@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { FormField, useFormFeedback, AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { inventoryService } from '../services/inventoryService'
-import { fifoBatch, getBatchStatus, today } from '../utils/inventoryLogic'
+import { fifoBatch, getBatchStatus, today, usableStock } from '../utils/inventoryLogic'
 import { PERMISSIONS } from '../utils/permissions'
 import { HistoryMore } from '../components/HistoryMore'
 
@@ -79,7 +79,7 @@ export function MovementForm({ type }) {
               <option value="">Select a product</option>
               {data.products.map((item) => (
                 <option value={item.id} key={item.id}>
-                  {item.name} — {item.stock} on hand
+                  {item.name} — {usableStock(item)} usable / {item.stock} on hand
                 </option>
               ))}
             </select>
@@ -102,7 +102,7 @@ export function MovementForm({ type }) {
               <select disabled={submitting} value={batchId} onChange={(event) => setBatchId(event.target.value)}>
                 <option value="new">Create receiving batch</option>
                 {batches.map((batch) => (
-                  <option value={batch.id} key={batch.id}>
+                  <option value={batch.id} key={batch.id} disabled={getBatchStatus(batch) === 'Expired'}>
                     {batch.number} · {batch.location || 'Main warehouse'} — {batch.quantity} available
                   </option>
                 ))}
@@ -128,7 +128,7 @@ export function MovementForm({ type }) {
           {type === 'Stock In' && batchId === 'new' && <>
             <FormField name="location" feedback={feedback}>Receiving location<input required disabled={submitting} value={location} maxLength={100} onChange={event => setLocation(event.target.value)} /></FormField>
             <FormField name="batchNumber" feedback={feedback}>Receiving batch number (optional)<input disabled={submitting} value={batchNumber} maxLength={255} onChange={event => setBatchNumber(event.target.value)} placeholder="Generated automatically if omitted" /></FormField>
-            <FormField name="expiresAt" feedback={feedback}>Expiry date (optional)<input type="date" min={today()} disabled={submitting} value={expiresAt} onChange={event => setExpiresAt(event.target.value)} /></FormField>
+            <FormField name="expiresAt" feedback={feedback}>{product?.demandPattern === 'Perishable-Rotating' ? 'Verified expiry date (required)' : 'Expiry date (optional)'}<input type="date" required={product?.demandPattern === 'Perishable-Rotating'} min={today()} disabled={submitting} value={expiresAt} onChange={event => setExpiresAt(event.target.value)} /></FormField>
           </>}
           <FormField name="reference" feedback={feedback}>
             Reference / reason

@@ -2,15 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { FormField, useFormFeedback, AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { inventoryService } from '../services/inventoryService'
-import { daysUntil, fifoBatch, getBatchStatus, getStockStatus, today } from '../utils/inventoryLogic'
+import { daysUntil, fifoBatch, getBatchStatus, getStockStatus, today, usableStock } from '../utils/inventoryLogic'
 import { PERMISSIONS } from '../utils/permissions'
 import { apiErrorMessage } from '../utils/apiErrors'
+import { ProductPlanningFields } from '../components/ProductPlanningFields'
 
 const categories = ['All categories', 'Air Conditioners', 'Smart Home', 'Air Quality', 'Replacement Filters']
-const emptyProduct = { sku: '', name: '', category: '', stock: 0, reorderPoint: 0, capacity: '', supplier: '', leadTime: 0, unit: 'units', monthlySales: 0 }
+const emptyProduct = { sku: '', name: '', category: '', stock: 0, reorderPoint: 0, capacity: '', supplier: '', leadTime: 0, unit: 'units', monthlySales: 0, demandPattern: 'Stable-Demand', monthlySalesHistory: [], seasonalProfile: [] }
 
 function ProductForm({ initial, onClose, onSaved, notify, onBusyChange }) {
-  const [form, setForm] = useState(initial ? { ...initial, capacity: initial.capacity ?? '', supplier: initial.supplier ?? '' } : emptyProduct)
+  const [form, setForm] = useState(initial ? { ...emptyProduct, ...initial, capacity: initial.capacity ?? '', supplier: initial.supplier ?? '' } : emptyProduct)
   const feedback = useFormFeedback()
   const { error, setError, handleError } = feedback
   const [submitting, setSubmitting] = useState(false)
@@ -22,6 +23,8 @@ function ProductForm({ initial, onClose, onSaved, notify, onBusyChange }) {
     onBusyChange(true)
     try {
       const payload = { ...form, stock: Number(form.stock), reorderPoint: Number(form.reorderPoint), capacity: form.capacity === '' ? null : Number(form.capacity), leadTime: Number(form.leadTime), monthlySales: Number(form.monthlySales) }
+      payload.monthlySalesHistory = form.monthlySalesHistory.map(row => ({ month: row.month, quantity: Number(row.quantity) }))
+      payload.seasonalProfile = form.seasonalProfile.map(row => ({ month: Number(row.month), multiplier: Number(row.multiplier) }))
       if (initial) delete payload.stock
       if (initial) await inventoryService.updateProduct(initial.id, payload)
       else await inventoryService.createProduct(payload)
@@ -37,6 +40,7 @@ function ProductForm({ initial, onClose, onSaved, notify, onBusyChange }) {
   return <form className="surface compact-form" onSubmit={submit}>
     <div className="section-heading"><div><p className="eyebrow">{initial ? 'EDIT' : 'CREATE'}</p><h2>{initial ? 'Edit product' : 'Add product'}</h2></div><button type="button" className="inline-button" onClick={onClose} disabled={submitting}>Cancel</button></div>
     <div className="form-grid">{[['sku', 'SKU'], ['name', 'Name'], ['category', 'Category'], ['supplier', 'Supplier'], ['unit', 'Unit'], ['stock', initial ? 'Current stock (read only)' : 'Starting stock', 'number'], ['reorderPoint', 'Reorder point', 'number'], ['capacity', 'Capacity', 'number'], ['leadTime', 'Lead time (days)', 'number'], ['monthlySales', 'Monthly sales', 'number']].map(([name, label, type = 'text']) => <FormField key={name} name={name} feedback={feedback}>{label}<input disabled={submitting} readOnly={Boolean(initial && name === 'stock')} name={name} type={type} min={type === 'number' ? '0' : undefined} value={form[name]} onChange={(event) => setForm((current) => ({ ...current, [name]: event.target.value }))} required={name !== 'capacity' && name !== 'supplier'} /></FormField>)}</div>
+    <ProductPlanningFields form={form} setForm={setForm} feedback={feedback} disabled={submitting} />
     {initial && <p className="muted">Use stock movements or an approved batch count to change stock. Editing product details does not change quantities.</p>}
     <FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{initial ? 'Save product' : 'Create product'}</AsyncButton>
   </form>
@@ -134,9 +138,9 @@ export function InventoryList() {
                     <strong>{item.name}</strong>
                     <small>{item.sku}</small>
                   </td>
-                  <td>{item.category}</td>
+                  <td>{item.category}<small>{item.demandPattern || 'Stable-Demand'}</small></td>
                   <td>
-                    <strong>{item.stock}</strong> {item.unit}
+                    <strong>{item.stock}</strong> {item.unit}<small>{usableStock(item)} usable</small>
                   </td>
                   <td>
                     {item.reorderPoint} {item.unit}
@@ -163,7 +167,7 @@ export function InventoryList() {
           )}
         </div>
       </section>
-      {confirmation && <ConfirmDialog tone="danger" title="Delete product?" message={`Delete ${confirmation.name}? Products with inventory history cannot be deleted.`} confirmLabel="Delete product" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
+      {confirmation && <ConfirmDialog tone="danger" title="Delete product?" message={`Move ${confirmation.name} to Trash? Eligible records can be restored. Products with stock, batches or inventory history cannot be deleted.`} confirmLabel="Delete product" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
     </section>
   )
 }
@@ -207,7 +211,7 @@ export function ProductDetails({ productId }) {
         <article>
           <small>Current stock</small>
           <strong>{product.stock}</strong>
-          <span>{product.unit} on hand</span>
+          <span>{product.unit} on hand · {usableStock(product)} usable</span>
         </article>
         <article>
           <small>Reorder point</small>
@@ -386,6 +390,11 @@ export function Batches() {
             <option>Depleted</option>
           </select>
         </div>
+        <div className="batch-timeline" aria-label="Batch expiry timeline">{rows.map(batch => {
+          const lifetime = batch.expiresAt ? (Date.parse(batch.expiresAt) - Date.parse(batch.receivedAt)) / 86400000 : 0
+          const used = lifetime > 0 ? Math.max(0, Math.min(100, (1 - daysUntil(batch.expiresAt) / lifetime) * 100)) : 0
+          return <article key={batch.id}><strong>{batch.number}</strong><small>{data.products.find(product => product.id === batch.productId)?.name} · {batch.location || 'Main warehouse'}</small><StatusBadge>{getBatchStatus(batch)}</StatusBadge>{batch.expiresAt ? <><progress aria-label={`${batch.number} shelf life elapsed`} value={used} max="100" /><small>Received {formatDate(batch.receivedAt)} → expires {formatDate(batch.expiresAt)} · {daysUntil(batch.expiresAt)} days remaining</small></> : <small>Received {formatDate(batch.receivedAt)} · no expiry recorded</small>}</article>
+        })}</div>
         <div className="table-wrap">
           <table>
             <thead>
@@ -438,7 +447,7 @@ export function Batches() {
           {!rows.length && <EmptyState title="No matching batches" />}
         </div>
       </section>
-      {confirmation && <ConfirmDialog tone="danger" title="Delete batch?" message={`Delete ${confirmation.number}? Only empty batches without movement history can be deleted.`} confirmLabel="Delete batch" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
+      {confirmation && <ConfirmDialog tone="danger" title="Delete batch?" message={`Move ${confirmation.number} to Trash? It can be restored. Only empty batches without movement history can be deleted.`} confirmLabel="Delete batch" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
     </section>
   )
 }

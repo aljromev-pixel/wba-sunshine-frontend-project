@@ -6,31 +6,37 @@ import { HistoryMore } from '../components/HistoryMore'
 import { inventoryService } from '../services/inventoryService'
 import { userService } from '../services/userService'
 import { apiErrorMessage } from '../utils/apiErrors'
-import { calculateReorder } from '../utils/inventoryLogic'
+import { calculateReorder, planningBaseline, usableStock, today } from '../utils/inventoryLogic'
 import { buildReport, filterReportDates, reportCsv, REPORT_TYPES } from '../utils/reports'
 
 export function ReorderCalculator() {
   const { data } = useApp()
   const [productId, setProductId] = useState(data.products[0]?.id || '')
-  const [monthly, setMonthly] = useState(String(data.products[0]?.monthlySales ?? 0))
+  const [targetMonth, setTargetMonth] = useState(today().slice(0, 7))
+  const initialPlan = planningBaseline(data.products[0] || {})
+  const [monthly, setMonthly] = useState(String(initialPlan.monthlySales))
   const [lead, setLead] = useState(String(data.products[0]?.leadTime ?? 0))
-  const [safety, setSafety] = useState('15')
-  const [multiplier, setMultiplier] = useState('1')
+  const [safety, setSafety] = useState(String(initialPlan.safetyPercent))
+  const [multiplier, setMultiplier] = useState(String(initialPlan.multiplier))
   const result = calculateReorder({
     monthlySales: monthly,
     leadTime: lead,
     safetyPercent: safety,
     multiplier,
   })
-  const choose = (id) => {
+  const choose = (id, month = targetMonth) => {
     const p = data.products.find((x) => x.id === id)
     if (!p) return
     setProductId(id)
-    setMonthly(String(p.monthlySales))
+    const baseline = planningBaseline(p, month)
+    setMonthly(String(baseline.monthlySales))
     setLead(String(p.leadTime))
-    setSafety('15')
+    setSafety(String(baseline.safetyPercent))
+    setMultiplier(String(baseline.multiplier))
   }
   const p = data.products.find((x) => x.id === productId)
+  const baseline = planningBaseline(p || {}, targetMonth)
+  const valid = /^\d{4}-\d{2}$/.test(targetMonth) && monthly !== '' && lead !== '' && multiplier !== '' && Number.isFinite(Number(monthly)) && Number(monthly) >= 0 && Number.isInteger(Number(lead)) && Number(lead) >= 0 && Number(lead) <= 365 && Number.isFinite(Number(multiplier)) && Number(multiplier) >= 0 && Number(multiplier) <= 10
   if (!data.products.length) return <EmptyState title="No products to calculate" text="Add a product before calculating a reorder recommendation." />
   return (
     <section className="page-stack">
@@ -38,7 +44,7 @@ export function ReorderCalculator() {
         <div>
           <p className="eyebrow">PURCHASING PLANNING</p>
           <h2>Seasonal reorder calculator</h2>
-          <p>Start with the selected product's saved sales and lead time. Adjust demand and safety assumptions for this calculation.</p>
+          <p>{baseline.months ? `Based on ${baseline.months} recorded months in the last 12 completed months.` : 'No recent monthly history is recorded; using the manually saved monthly-sales baseline.'} Adjust the assumptions for this planning scenario. {baseline.months > 0 && baseline.months < 12 ? 'Some months are missing; this average uses only recorded months.' : ''}</p>
         </div>
       </div>
       <div className="two-column calculator-grid">
@@ -53,6 +59,7 @@ export function ReorderCalculator() {
               ))}
             </select>
           </label>
+          <label>Planning month<input type="month" required value={targetMonth} onChange={event => { setTargetMonth(event.target.value); choose(productId, event.target.value) }} /></label>
           <label>
             Average monthly sales
             <input type="number" min="0" value={monthly} onChange={(e) => setMonthly(e.target.value)} />
@@ -63,20 +70,20 @@ export function ReorderCalculator() {
           </label>
           <label>
             Seasonal demand multiplier
-            <input type="number" min="0" step="0.1" value={multiplier} onChange={(e) => setMultiplier(e.target.value)} />
+            <input type="number" min="0" max="10" step="0.1" value={multiplier} onChange={(e) => setMultiplier(e.target.value)} />
           </label>
           <label>
             Safety stock %
             <select value={safety} onChange={(e) => setSafety(e.target.value)}>
               <option value="15">Seasonal-critical — 15%</option>
-              <option value="10">Stable — 10%</option>
+              <option value="10">Stable / perishable — 10%</option>
             </select>
           </label>
         </section>
         <section className="surface formula-card">
           <p className="eyebrow">CALCULATED RECOMMENDATION</p>
           <h2>{p?.name}</h2>
-          <div className="formula-results">
+          {!valid ? <FormError>Enter nonnegative demand, a whole lead time from 0–365 days and a multiplier from 0–10.</FormError> : <div className="formula-results">
             <div>
               <small>Predicted daily demand</small>
               <strong>{result.dailyDemand.toFixed(1)}</strong>
@@ -92,7 +99,8 @@ export function ReorderCalculator() {
               <strong>{Math.ceil(result.reorderPoint)}</strong>
               <span>at {multiplier}x seasonal multiplier</span>
             </div>
-          </div>
+            <div><small>Suggested replenishment</small><strong>{Math.max(0, Math.ceil(result.reorderPoint) - usableStock(p))}</strong><span>Units to reach this reorder point, using usable stock. This is not an economic order quantity.</span></div>
+          </div>}
           <p className="formula-note">ROP = (daily demand × seasonal multiplier × lead time) + safety stock</p>
         </section>
       </div>
@@ -336,7 +344,7 @@ export function Users() {
           {!loading && !loadError && !users.length && <EmptyState title="No users found" />}
         </div>
       </section>
-      {confirmation && <ConfirmDialog tone="danger" title="Delete user?" message={`Delete ${confirmation.name}? This cannot be undone.`} confirmLabel="Delete user" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
+      {confirmation && <ConfirmDialog tone="danger" title="Delete user?" message={`Move ${confirmation.name} to Trash? Access will be revoked. An administrator can restore the account; it will remain disabled until enabled.`} confirmLabel="Delete user" onCancel={() => setConfirmation(null)} onConfirm={() => remove(confirmation)} />}
     </section>
   )
 }

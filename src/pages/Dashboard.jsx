@@ -1,5 +1,5 @@
 import { useApp } from '../context/AppContext'
-import { getBatchStatus, getStockStatus } from '../utils/inventoryLogic'
+import { getBatchStatus, getStockStatus, usableStock, movementChange } from '../utils/inventoryLogic'
 import { formatDate, StatusBadge } from '../components/Shared'
 
 export function Dashboard() {
@@ -53,9 +53,9 @@ export function Dashboard() {
           <span>Active appliance lines</span>
         </article>
         <article>
-          <small>Total stock</small>
-          <strong>{data.products.reduce((sum, item) => sum + item.stock, 0)}</strong>
-          <span>Units and filters on hand</span>
+          <small>Usable stock</small>
+          <strong>{data.products.reduce((sum, item) => sum + usableStock(item), 0)}</strong>
+          <span>{data.products.reduce((sum, item) => sum + item.stock, 0)} total on hand; expired stock excluded from usable</span>
         </article>
         <article className={low.length ? 'attention' : ''}>
           <small>Low stock items</small>
@@ -68,6 +68,10 @@ export function Dashboard() {
           <span>Filters requiring FIFO review</span>
         </article>
       </div>
+      <section className="surface"><h2>Stock health distribution</h2><div className="stock-chart">{['In stock', 'Low stock', 'Near capacity'].map(status => {
+        const count = data.products.filter(product => getStockStatus(product) === status).length
+        return <div key={status}><span>{status}</span><meter aria-label={`${status} products`} min="0" max={Math.max(1, data.products.length)} value={count} /><strong>{count}</strong></div>
+      })}</div><p className="muted">Low-stock status uses usable quantities. Capacity uses total physical stock.</p></section>
       <div className="two-column">
         <section className="surface">
           <div className="section-heading">
@@ -92,8 +96,7 @@ export function Dashboard() {
                   </small>
                 </div>
                 <b>
-                  {item.type === 'Stock In' || item.type === 'Return' ? '+' : '−'}
-                  {item.quantity}
+                  {movementChange(item)}
                 </b>
               </div>
             ))}
@@ -115,7 +118,7 @@ export function Dashboard() {
                   <div>
                     <strong>{item.name}</strong>
                     <small>
-                      {item.stock} available · ROP {item.reorderPoint}
+                      {usableStock(item)} usable · {item.stock} on hand · ROP {item.reorderPoint}
                     </small>
                   </div>
                   <StatusBadge>{getStockStatus(item)}</StatusBadge>

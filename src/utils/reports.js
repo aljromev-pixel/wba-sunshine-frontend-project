@@ -1,4 +1,4 @@
-import { calculateReorder, daysUntil, getStockStatus, warehouseDate } from './inventoryLogic.js'
+import { calculateReorder, daysUntil, getStockStatus, warehouseDate, usableStock, planningBaseline } from './inventoryLogic.js'
 
 export function filterReportDates(data, from = '', to = '') {
   const matches = item => {
@@ -51,10 +51,10 @@ export function buildReport(type, data, { multiplier = 1, safetyPercent = 15 } =
       }
     case 'Low Stock Report':
       return {
-        description: 'Products at or below their saved reorder point. Shortfall is max(0, reorder point − stock).',
-        columns: ['SKU', 'Product', 'Stock', 'Reorder point', 'Shortfall'],
-        rows: data.products.filter((item) => item.stock <= item.reorderPoint)
-          .map((item) => row(item, [item.sku, item.name, item.stock, item.reorderPoint, Math.max(0, item.reorderPoint - item.stock)])),
+        description: 'Products whose usable stock is at or below their saved reorder point. Expired stock is excluded.',
+        columns: ['SKU', 'Product', 'Usable stock', 'Reorder point', 'Shortfall'],
+        rows: data.products.filter((item) => usableStock(item) <= item.reorderPoint)
+          .map((item) => row(item, [item.sku, item.name, usableStock(item), item.reorderPoint, Math.max(0, item.reorderPoint - usableStock(item))])),
       }
     case 'Expiring Stock Report':
       return {
@@ -82,9 +82,9 @@ export function buildReport(type, data, { multiplier = 1, safetyPercent = 15 } =
         description: `Planning calculation using saved monthly sales and lead time, demand multiplier ${multiplier}× and safety stock ${safetyPercent}%. Recommendations do not change saved reorder points or stock.`,
         columns: ['SKU', 'Product', 'Stock', 'Daily demand', 'Lead time (days)', 'Safety stock', 'Suggested reorder point', 'Shortfall'],
         rows: data.products.map((item) => {
-          const result = calculateReorder({ monthlySales: item.monthlySales, leadTime: item.leadTime, multiplier, safetyPercent })
+          const result = calculateReorder({ monthlySales: planningBaseline(item).monthlySales, leadTime: item.leadTime, multiplier, safetyPercent })
           const target = Math.ceil(result.reorderPoint)
-          return row(item, [item.sku, item.name, item.stock, result.dailyDemand.toFixed(1), item.leadTime, Math.ceil(result.safetyStock), target, Math.max(0, target - item.stock)])
+          return row(item, [item.sku, item.name, item.stock, result.dailyDemand.toFixed(1), item.leadTime, Math.ceil(result.safetyStock), target, Math.max(0, target - usableStock(item))])
         }),
       }
     default:
