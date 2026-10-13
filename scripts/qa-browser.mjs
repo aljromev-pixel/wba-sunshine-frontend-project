@@ -14,6 +14,8 @@ const products=[{id:1,sku:'QA-1',name:'Alpha Product',category:'Smart Home',stoc
 const inventory={products,batches:[],transactions:[],adjustments:[],audit:[],alerts:[]};
 async function makePage(handler,token=true){
  const page=await browser.newPage();await page.emulateMedia({colorScheme:'light'});page.setDefaultTimeout(6000);page.on('pageerror',e=>errors.push(e.message));
+ page.setDefaultNavigationTimeout(30000);
+ await page.route('https://fonts.googleapis.com/**',route=>route.fulfill({contentType:'text/css',body:''}));
  if(token)await page.addInitScript(()=>sessionStorage.setItem('wba-auth-token','test-only-token'));
  await page.route('**/api/**',async route=>{const path=new URL(route.request().url()).pathname;const method=route.request().method();const json=(status,data)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(data)});await handler({route,path,method,json});});
  return page;
@@ -52,6 +54,7 @@ try{
  for(const mode of ['dark','light']){
   if(await publicPage.evaluate(()=>document.documentElement.dataset.theme)!==mode)await themeButton.click();
   assert.equal(await publicPage.evaluate(()=>getComputedStyle(document.documentElement).colorScheme),mode);
+  assert.equal(await publicPage.locator('meta[name="theme-color"]').getAttribute('content'),mode==='dark'?'#181a18':'#f3f2ee');
   assert.equal(await publicPage.locator('.public-page').evaluate(el=>getComputedStyle(el).backgroundImage),'none');
   for(const width of [1440,390]){
    await publicPage.setViewportSize({width,height:900});
@@ -227,6 +230,33 @@ try{
  const review=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user:reviewer}:reviews));
  await review.goto('http://127.0.0.1:5197/#/adjustments');await review.getByRole('heading',{name:'Approve or reject requests'}).waitFor();assert.equal(await review.getByRole('heading',{name:'Submit adjustment',exact:true}).count(),0);assert.equal(await review.getByRole('button',{name:'Approve',exact:true}).count(),1);await review.getByRole('link',{name:/Adjustments/}).waitFor();
  for(const action of ['Approve','Reject']){await review.getByRole('button',{name:action,exact:true}).click();await checkDialogContrast(review);await review.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();}
+ const visualInventory={...reviews,loadedAt:'2030-01-15T12:00:00Z',products:[{...products[0],name:'Portable inverter air conditioner with a long warehouse product description'}]};
+ const visual=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user:{...user,name:'Alexandria Catherine Warehouse Administrator'}}:visualInventory));
+ await visual.emulateMedia({reducedMotion:'reduce'});
+ for(const width of [320,768,1440]){
+  await visual.setViewportSize({width,height:640});await visual.goto('http://127.0.0.1:5197/#/adjustments');
+  await visual.getByRole('heading',{name:'Approve or reject requests'}).waitFor();
+  const geometry=await visual.evaluate(()=>{
+   const heading=document.querySelector('.workspace-heading').getBoundingClientRect(),actions=document.querySelector('.topbar-actions').getBoundingClientRect();
+   return {overflow:document.documentElement.scrollWidth>innerWidth+1,collision:heading.right>actions.left+1&&heading.left<actions.right-1&&heading.bottom>actions.top+1&&heading.top<actions.bottom-1,clipped:[...document.querySelectorAll('.workspace-title h1,.breadcrumb')].some(el=>el.scrollWidth>el.clientWidth+1)};
+  });
+  assert.deepEqual(geometry,{overflow:false,collision:false,clipped:false},`Header must stay readable at ${width}px`);
+  if(width===320){
+   const queue=visual.locator('.adjustment-row').first();
+   const details=await queue.locator(':scope > div').first().boundingBox(),actions=await queue.locator('.review-actions').boundingBox();
+   assert.ok(actions.y>=details.y+details.height,'Mobile review controls must not squeeze or overlap request details');
+  }
+ }
+ await visual.setViewportSize({width:320,height:480});await visual.goto('http://127.0.0.1:5197/#/inventory');
+ const visualTrigger=visual.getByRole('button',{name:'Delete',exact:true});await visualTrigger.click();await visual.getByRole('dialog').waitFor();
+ assert.ok(await visual.evaluate(()=>scrollY>0),'Dialog placement must be checked after scrolling the page');
+ const modalBounds=await visual.getByRole('dialog').boundingBox();
+ assert.ok(modalBounds.x>=0&&modalBounds.y>=0&&modalBounds.x+modalBounds.width<=320&&modalBounds.y+modalBounds.height<=480,'Scrolled-page confirmation must remain inside the mobile viewport');
+ assert.equal(await visual.evaluate(()=>document.body.style.overflow),'hidden');assert.equal(await visual.locator('.application').evaluate(el=>el.inert),true);
+ await visual.getByRole('dialog').getByRole('button',{name:'Delete product',exact:true}).scrollIntoViewIfNeeded();await checkDialogContrast(visual);
+ await visual.keyboard.press('Escape');await visual.getByRole('dialog').waitFor({state:'detached'});
+ assert.equal(await visual.evaluate(()=>document.body.style.overflow),'');assert.equal(await visual.locator('.application').evaluate(el=>el.inert),false);assert.equal(await visualTrigger.evaluate(el=>el===document.activeElement),true);
+ console.log('Long-name header layout, narrow adjustment review controls, scrolled mobile dialogs, background scroll/focus isolation and focus restoration passed.');
  const batchDelete=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user}:{...inventory,batches:[{id:1,productId:1,number:'QA-EMPTY',quantity:0,receivedAt:'2030-01-01',expiresAt:null}]}));
  await batchDelete.goto('http://127.0.0.1:5197/#/batches');await batchDelete.getByRole('button',{name:'Delete',exact:true}).click();await checkDialogContrast(batchDelete);await batchDelete.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
  console.log('Delete user/product/batch and approve/reject dialogs have readable text and controls; desktop/mobile warning layouts passed.');

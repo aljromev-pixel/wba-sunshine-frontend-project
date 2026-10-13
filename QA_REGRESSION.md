@@ -195,3 +195,27 @@ fixtures. Vite production build passed. Final layout checks do not claim testing
 physical devices or other browser engines. Three new migrations, hosted PostgreSQL
 checks, and external backup/restore verification are still required for release.
 No Sunny/chatbot code is included in these improvements.
+
+## Visual alignment follow-up — 2026-10-14
+
+Local screenshots and layout checks covered 19 pages in light and dark mode at
+320×640, 768×900 and 1440×900 (114 page/theme/viewport combinations). Long product
+names, user names, batch references and notification messages were included.
+No page overflow, clipped inspected headings/paragraphs, or header/control
+collisions remained. The authenticated-page audit also checked computed text
+contrast; this is not a complete accessibility certification. External font
+requests were isolated for the final audit to verify the local fallback font.
+
+| Check | Verification | Result |
+| --- | --- | --- |
+| Header and supporting text | Titles and breadcrumbs remain clear of controls; long account names truncate with the complete name available; labels and metadata are readable. | Pass |
+| Review and table actions | Narrow review queues place controls below request details; product, batch and user actions have spacing and usable targets. | Pass |
+| Stock colors | Low stock uses the warning color; neutral transfers and decreasing quantities no longer appear as stock increases. Chart values remain available to assistive technology. | Pass |
+| Dialog placement and interaction | A confirmation opened after scrolling remains in the mobile viewport; its contents scroll; the background is inert and cannot scroll. Escape restores focus and scrolling; pending and failed actions retain their existing behavior. | Pass |
+| Public and theme surfaces | Homepage and sign-in fit the inspected widths; both palettes remain readable; mobile browser theme color follows the selected mode. | Pass |
+
+Complete browser regression, live Laravel regression with disposable SQLite,
+13 calculation tests and the Vite production build passed. Live verification
+included successful CRUD and trash restore, not just intercepted responses.
+These results apply to the source changes; hosted visual checks and physical-device
+testing are separate. Sunny/chatbot files were not changed for this follow-up.
