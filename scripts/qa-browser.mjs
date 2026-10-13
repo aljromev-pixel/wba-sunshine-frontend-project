@@ -10,7 +10,7 @@ await server.listen();
 let browser;
 const errors=[];
 const user={id:1,name:'Test Administrator',email:'qa@example.test',department:'Administration',roleLevel:'Manager'};
-const products=[{id:1,sku:'QA-1',name:'Alpha Product',category:'Smart Home',stock:2,reorderPoint:1,capacity:null,supplier:'Supplier A',leadTime:1,unit:'units',monthlySales:1},{id:2,sku:'QA-2',name:'Beta Product',category:'Smart Home',stock:3,reorderPoint:1,capacity:10,supplier:'Supplier B',leadTime:2,unit:'units',monthlySales:2}];
+const products=[{id:1,sku:'QA-1',name:'Alpha Product',category:'Smart Home',stock:2,reorderPoint:1,capacity:null,supplier:'Supplier A',leadTime:1,unit:'units',monthlySales:1},{id:2,sku:'QA-2',name:'Beta Product',category:'Refrigerators',stock:3,reorderPoint:1,capacity:10,supplier:'Supplier B',leadTime:2,unit:'units',monthlySales:2}];
 const inventory={products,batches:[],transactions:[],adjustments:[],audit:[],alerts:[]};
 async function makePage(handler,token=true){
  const page=await browser.newPage();await page.emulateMedia({colorScheme:'light'});page.setDefaultTimeout(6000);page.on('pageerror',e=>errors.push(e.message));
@@ -38,17 +38,42 @@ async function waitForTheme(page,mode){
 }
 async function selectTheme(page,mode){
  await page.waitForFunction(()=>document.querySelector('.theme-toggle')?.getAttribute('aria-busy')!=='true');
- if(await page.evaluate(()=>document.documentElement.dataset.theme)!==mode)await page.getByRole('button',{name:'Dark mode',exact:true}).click();
+ if(await page.evaluate(()=>document.documentElement.dataset.theme)!==mode)await page.getByRole('button',{name:/^(Light|Dark) mode$/,exact:true}).click();
  await waitForTheme(page,mode);
 }
 try{
  browser=await chromium.launch({channel:'msedge',headless:true});
  let passwordCalls=0,inventoryCalls=0,releasePassword,passwordMode='validation',setupComplete=false,setupInventoryFail=true;
  const employee={...user,department:'Sales',roleLevel:'Staff',mustChangePassword:true,isActive:true};
+ for(const portal of ['admin','staff']){
+  const actor=portal==='admin'?user:{...user,id:2,department:'Warehouse',roleLevel:'Staff'};
+  const wrong=portal==='admin'?'staff':'admin';
+  const portalPage=await makePage(({path,json})=>{
+   if(path.endsWith('/login'))return path===(portal==='admin'?'/api/v1/auth/admin/login':'/api/v1/auth/login')?json(200,{token:'portal-test-token',user:actor}):json(403,{message:`This account must use ${portal==='admin'?'Admin':'Staff'} sign in.`,code:'LOGIN_PORTAL_MISMATCH'});
+   if(path.endsWith('/auth/me'))return json(200,{user:actor});
+   return json(200,inventory);
+  },false);
+  await portalPage.setViewportSize({width:390,height:740});
+  await portalPage.goto(`http://127.0.0.1:5197/#/${wrong==='admin'?'admin/':''}sign-in`);
+  await portalPage.locator('input[name="email"]').fill(actor.email);await portalPage.locator('input[name="password"]').fill('portal-test-password');await portalPage.getByRole('button',{name:'Sign in',exact:true}).click();
+  await portalPage.getByText(`This account must use ${portal==='admin'?'Admin':'Staff'} sign in.`,{exact:true}).waitFor();
+  assert.equal(await portalPage.evaluate(()=>sessionStorage.getItem('wba-auth-token')),null);
+  await portalPage.getByRole('link',{name:`Use ${portal==='admin'?'Admin':'Staff'} sign in`,exact:true}).click();
+  assert.equal(await portalPage.locator('input[name="password"]').inputValue(),'','Switching portals clears credentials');
+  await portalPage.locator('input[name="email"]').fill(actor.email);await portalPage.locator('input[name="password"]').fill('portal-test-password');await portalPage.getByRole('button',{name:'Sign in',exact:true}).click();
+  await portalPage.locator('.hero-panel').waitFor();assert.equal(new URL(portalPage.url()).hash,`#/${portal}/dashboard`);
+  await portalPage.reload();await portalPage.locator('.hero-panel').waitFor();
+  await portalPage.goto(`http://127.0.0.1:5197/#/${wrong}/dashboard`);await portalPage.getByRole('heading',{name:'This dashboard belongs to the other login portal.'}).waitFor();
+  await portalPage.getByRole('button',{name:'Open navigation',exact:true}).click();await portalPage.getByRole('button',{name:'Sign out',exact:true}).click();await portalPage.getByRole('button',{name:'Sign in',exact:true}).waitFor();
+  assert.equal(await portalPage.evaluate(()=>sessionStorage.getItem('wba-auth-token')),null);
+  assert.equal(await portalPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
+  await portalPage.close();
+ }
+ console.log('Admin/Staff wrong-portal rejection, cleared credentials, correct dashboards, restoration, opposite dashboard denial and mobile logout passed.');
  const publicPage=await makePage(({json})=>json(200,{}),false);
  await publicPage.goto('http://127.0.0.1:5197');
  await publicPage.getByRole('heading',{name:'A brighter way to keep stock moving.'}).waitFor();
- const themeButton=publicPage.getByRole('button',{name:'Dark mode',exact:true});
+ const themeButton=publicPage.getByRole('button',{name:/^(Light|Dark) mode$/,exact:true});
  assert.equal(await themeButton.getAttribute('aria-pressed'),'false');
  await publicPage.emulateMedia({colorScheme:'dark'});
  await publicPage.waitForFunction(()=>document.documentElement.dataset.theme==='dark');
@@ -68,7 +93,10 @@ try{
   for(const width of [1440,390]){
    await publicPage.setViewportSize({width,height:900});
    assert.equal(await publicPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
-   if(process.env.QA_SCREENSHOT_DIR)await publicPage.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-home-${mode}-${width}.png`,fullPage:true,animations:'disabled'});
+   if(process.env.QA_SCREENSHOT_DIR){
+    await publicPage.screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/sunshine-home-${mode}-${width}.png`,fullPage:true,animations:'disabled'});
+    if(width===1440)await publicPage.locator('.public-visual').screenshot({path:`${process.env.QA_SCREENSHOT_DIR}/wba-workflow-logo-${mode}.png`,animations:'disabled'});
+   }
   }
  }
  for(const fallback of [false,true]){
@@ -92,7 +120,7 @@ try{
   },fallback);
   await animatedTheme.goto('http://127.0.0.1:5197');await animatedTheme.locator('.flashlight-icon').waitFor();
   for(const mode of ['light','dark']){
-   await animatedTheme.getByRole('button',{name:'Dark mode',exact:true}).click();await waitForTheme(animatedTheme,mode);
+   await animatedTheme.getByRole('button',{name:/^(Light|Dark) mode$/,exact:true}).click();await waitForTheme(animatedTheme,mode);
    const animation=await animatedTheme.evaluate(()=>window.__qaThemeAnimations.at(-1));
    const paths=animation.frames.clipPath;
    assert.ok(paths[mode==='light'?0:1].startsWith('circle(0px'),`${mode} must ${mode==='light'?'expand':'contract'} from the icon`);
@@ -109,8 +137,8 @@ try{
   await animatedTheme.reload();await waitForTheme(animatedTheme,'light');
   for(const width of [320,390]){
    await animatedTheme.setViewportSize({width,height:740});
-   const logo=await animatedTheme.locator('.public-orbit').boundingBox(),sun=await animatedTheme.locator('.public-orbit .sun-icon').boundingBox();
-   assert.ok(Math.abs(logo.x+logo.width/2-sun.x-sun.width/2)<.5&&Math.abs(logo.y+logo.height/2-sun.y-sun.height/2)<.5,'Mobile sun artwork must be centered inside its circle');
+   const logo=await animatedTheme.locator('.public-orbit').boundingBox(),emblem=await animatedTheme.locator('.public-orbit .wba-emblem').boundingBox();
+   assert.ok(Math.abs(logo.x+logo.width/2-emblem.x-emblem.width/2)<.5&&Math.abs(logo.y+logo.height/2-emblem.y-emblem.height/2)<.5,'Mobile WBA artwork must remain centered in its container');
    const mark=await animatedTheme.locator('.wba-mark').boundingBox();assert.equal(mark.width,mark.height,'The WBA mark must retain its square proportions');assert.equal(await animatedTheme.locator('.wba-mark').getAttribute('viewBox'),'0 0 128 128');assert.equal(await animatedTheme.locator('.wba-mark .wba-sun-lettering').textContent(),'WBA');assert.equal(await animatedTheme.locator('.wba-mark .wba-sun-rays > g').count(),12);
   }
   await animatedTheme.close();
@@ -144,7 +172,7 @@ try{
   await publicPage.setViewportSize({width,height:900});
   assert.equal(await publicPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,`Landing overflow at ${width}`);
  }
- await publicPage.getByRole('link',{name:'Sign in',exact:true}).click();
+ await publicPage.getByRole('link',{name:'Staff sign in',exact:true}).click();
  await publicPage.getByRole('heading',{name:'Sign in to your workspace',exact:true}).waitFor();
  assert.equal(await publicPage.locator('.login-card').evaluate(el=>getComputedStyle(el).animationName),'entry-right');
  await publicPage.getByRole('link',{name:'← Back to home',exact:true}).click();
@@ -189,7 +217,7 @@ try{
  passwordMode='success';await setup.getByRole('button',{name:'Save password and continue'}).click();
  await setup.getByRole('heading',{name:'Unable to load inventory'}).waitFor();
  assert.equal(await setup.evaluate(()=>sessionStorage.getItem('wba-auth-token')),'private-password-token');
- assert.equal(new URL(setup.url()).hash,'#/dashboard');
+ assert.equal(new URL(setup.url()).hash,'#/staff/dashboard');
  setupInventoryFail=false;await setup.getByRole('button',{name:'Retry inventory loading'}).click();
  await setup.getByRole('heading',{name:'Reliable answers for every customer.'}).waitFor();assert.equal(passwordCalls,3);
  await setup.reload();await setup.getByRole('heading',{name:'Reliable answers for every customer.'}).waitFor();assert.equal(passwordCalls,3);
@@ -221,6 +249,11 @@ try{
  return json(200,{});
  });
  await page.goto('http://127.0.0.1:5197/#/inventory');await page.getByRole('button',{name:'Add product',exact:true}).waitFor();
+ assert.deepEqual(await page.getByRole('combobox',{name:'Filter category'}).locator('option').allTextContents(),['All categories','Refrigerators','Smart Home']);
+ await page.getByRole('combobox',{name:'Filter category'}).selectOption('Refrigerators');
+ assert.equal(await page.getByRole('button',{name:'Edit',exact:true}).count(),1);
+ await page.getByRole('button',{name:'Edit',exact:true}).click();assert.equal(await page.locator('input[name="sku"]').inputValue(),'QA-2');
+ await page.getByRole('combobox',{name:'Filter category'}).selectOption('All categories');
  await page.getByRole('button',{name:'Edit',exact:true}).nth(0).click();assert.equal(await page.locator('input[name="sku"]').inputValue(),'QA-1');assert.equal(await page.locator('input[name="capacity"]').inputValue(),'');
  await page.getByRole('button',{name:'Edit',exact:true}).nth(1).click();assert.equal(await page.locator('input[name="sku"]').inputValue(),'QA-2');
  await page.getByRole('button',{name:'Add product',exact:true}).click();assert.equal(await page.locator('input[name="sku"]').inputValue(),'');
@@ -440,7 +473,7 @@ try{
  const unavailableStorage=await makePage(({json})=>json(200,{}),false);
  await unavailableStorage.addInitScript(()=>Object.defineProperty(window,'localStorage',{get(){throw new Error('Storage unavailable');}}));
  await unavailableStorage.goto('http://127.0.0.1:5197/#/sign-in');
- await unavailableStorage.getByRole('button',{name:'Dark mode',exact:true}).click();
+ await unavailableStorage.getByRole('button',{name:/^(Light|Dark) mode$/,exact:true}).click();
  await waitForTheme(unavailableStorage,'dark');
  assert.equal(await unavailableStorage.evaluate(()=>document.documentElement.dataset.theme),'dark');
  const motion=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user}:inventory));

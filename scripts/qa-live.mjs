@@ -67,7 +67,7 @@ try {
   page.setDefaultTimeout(15000)
   page.on('pageerror', error => errors.push(error.message))
   assert.equal((await api(null, '/auth/register', 'POST', {})).status, 404)
-  await page.goto('http://127.0.0.1:5199/#/inventory')
+  await page.goto('http://127.0.0.1:5199/#/admin/sign-in')
   await page.getByRole('button', { name: 'Sign in', exact: true }).waitFor()
   await page.locator('input[name="email"]').fill('administration.manager@example.test')
   await page.locator('input[name="password"]').fill('invalid')
@@ -75,6 +75,8 @@ try {
   await page.locator('input[name="email"][aria-invalid="true"]').waitFor()
   await page.locator('input[name="password"]').fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await page.getByRole('heading', { name: 'A complete view of inventory control.' }).waitFor()
+  await page.goto('http://127.0.0.1:5199/#/inventory')
   await page.getByRole('button', { name: 'Add product', exact: true }).waitFor()
   const adminToken = await page.evaluate(() => sessionStorage.getItem('wba-auth-token'))
   const createdAccount = await api(adminToken, '/users', 'POST', { name: 'QA Registered', lastName: 'Member', email: 'qa.registered@example.test', department: 'Sales', roleLevel: 'Staff', password })
@@ -193,8 +195,12 @@ try {
   assert.equal((await api(token, '/inventory/movements', 'POST', { type:'Stock Out', productId:product.id, batchId:batch.id, quantity:999, reference:'QA invalid quantity' })).status,422)
   const roles = [['Warehouse','Staff',false],['Warehouse','Supervisor',true],['Warehouse','Manager',true],['Sales','Staff',false],['Sales','Supervisor',false],['Purchasing','Staff',false],['Purchasing','Manager',true],['Administration','Manager',true]]
   for (const [department, level, reviewer] of roles) {
-    const login = await api(null, '/auth/login', 'POST', { email: department === 'Administration' ? 'administration.reviewer@example.test' : `${department}.${level}@example.test`.toLowerCase(), password })
+    const credentials = { email: department === 'Administration' ? 'administration.reviewer@example.test' : `${department}.${level}@example.test`.toLowerCase(), password }
+    const wrongPortal = department === 'Administration' ? '/auth/login' : '/auth/admin/login'
+    assert.equal((await api(null, wrongPortal, 'POST', credentials)).status, 403)
+    const login = await api(null, department === 'Administration' ? '/auth/admin/login' : '/auth/login', 'POST', { email: department === 'Administration' ? 'administration.reviewer@example.test' : `${department}.${level}@example.test`.toLowerCase(), password })
     assert.equal(login.status, 200)
+    assert.equal((await api(login.data.token, department === 'Administration' ? '/staff/overview' : '/admin/overview')).status, 403)
     for (const approved of [true, false]) {
       const pending = await api(token, '/inventory/adjustments', 'POST', { productId: product.id, requestedQty: 9, reason: 'QA review matrix' })
       const reviewed = await api(login.data.token, `/inventory/adjustments/${pending.data.data.id}/review`, 'POST', { approved })
