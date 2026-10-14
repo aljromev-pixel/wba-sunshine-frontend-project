@@ -318,3 +318,34 @@ complete the public build metadata.
 This transitive build dependency was deliberately left unchanged at the project
 owner's request. It remains an open release item; successful builds are not a
 clean dependency-security audit.
+
+### Catalogue, charts and transaction feedback — 2026-10-14
+
+- PASS: Purchasing Managers create/edit products and receive/edit batches through
+  the real Laravel API. Mobile browser writes persist after reload; batch edits
+  preserve stock and locations. Deletion, Trash and user-management requests
+  remain forbidden for that role. Purchasing Staff retain read-only catalogue access.
+- PASS: Full `qa:browser` and disposable-database `qa:live` suites, including the
+  eight-role API matrix, review/self-review rules, CRUD, movements, failure/retry
+  states and mobile navigation. The sidebar test now waits for rendered navigation
+  after a route change instead of inspecting an intermediate loading state.
+- PASS: The Product selector has an explicit accessible name; product/batch forms
+  focus their first field. Empty catalogues explain how to add a product before a
+  batch. Stock health uses a doughnut with counts and percentages; shelf life uses
+  a labelled circular meter, including 100% elapsed for same-day receipt/expiry.
+- PASS: Successful writes show a dismissible, politely announced handshake notice.
+  Reduced-motion mode suppresses the animation; notices clear on logout/expiry.
+  Mobile status filters use their own full-width row and remain readable at
+  320px and 390px. Batch product lookups reuse a map rather than repeatedly scanning
+  the catalogue.
+- PASS: Production build with Sunny excluded; all 13 calculation tests; backend
+  suite with 150 passed, 805 assertions and two PostgreSQL-only tests skipped on
+  local SQLite. Laravel Pint completed.
+- PASS: Final production-build axe audit: 132 route/theme/viewport checks,
+  zero violations, zero page overflow and zero browser exceptions at
+  320/390/1440px in light/dark mode. This is automated evidence, not full manual
+  WCAG certification or hosted/physical-device sign-off.
+
+No dependencies or live database records were changed for this verification.
+The previously documented dependency advisory and staged Supabase Auth cutover
+remain separate release items.

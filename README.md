@@ -169,6 +169,14 @@ opens the matching Admin or Staff dashboard. Role-specific shared modules retain
 the existing permission matrix. Switching portals clears entered credentials;
 logout, expired sessions and opposite-dashboard access are regression-tested.
 
+Purchasing Managers can add and edit products and batch receipts. Inventory
+deletion and Trash recovery remain limited to Warehouse Supervisors/Managers and
+Administration Managers, with matching Laravel enforcement. Batch metadata edits
+do not overwrite stock or storage locations; use movements, Transfer or approved
+counts for those changes. Successful writes show a dismissible handshake notice
+after the API confirms the operation. Charts use stock-health doughnuts and
+circular shelf-life indicators, with readable values in both themes.
+
 Supabase Auth is prepared in the backend as a controlled migration. The frontend
 continues to call Laravel and receives only a portal-approved bearer token and
 profile. It never receives a service key or refresh token. Server configuration,

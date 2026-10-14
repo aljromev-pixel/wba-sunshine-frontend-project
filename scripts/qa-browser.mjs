@@ -368,6 +368,7 @@ try{
  const alignment=await visual.evaluate(()=>['.topbar','.inventory-refresh','.refresh-status','.hero-panel'].map(selector=>{const rect=document.querySelector(selector).getBoundingClientRect();return{left:rect.left,right:rect.right};}));
  for(const bounds of alignment)assert.ok(Math.abs(bounds.left-alignment[0].left)<1&&Math.abs(bounds.right-alignment[0].right)<1,'Header, refresh controls, notice and dashboard must share their edges on wide screens');
  const groupedNav=visual.locator('#workspace-navigation');
+ await groupedNav.getByRole('navigation',{name:'Workspace modules'}).waitFor();
  assert.equal(await groupedNav.getByRole('navigation',{name:'Workspace modules'}).getByRole('link').count(),3,'Overview and the two inventory destinations should be the only initially expanded module links');
  assert.equal(await groupedNav.locator('nav a').count(),15,'All permitted modules remain available except the duplicate notification link');
  assert.equal(await groupedNav.locator('a[href="#/notifications"]').count(),0);assert.equal(await visual.getByRole('button',{name:'Open dashboard',exact:true}).count(),0);
@@ -670,5 +671,32 @@ try{
  console.log('Light/dark theme, system preference, stored choice after refresh, keyboard toggle, storage fallback, dialog contrast in both modes and responsive workspace passed.');
  console.log('Unknown routes, API-backed reorder defaults, empty calculator, API alerts, and theme checks passed.');
  console.log('401/403/404/500/network, forbidden route, and desktop/mobile navigation and overflow checks passed.');
+ const chartPage=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user}:{...inventory,products:[{...products[0],stock:0},{...products[1],stock:10},{...products[0],id:3,stock:5}]}));
+ for(const width of [320,390,1440]){
+  await chartPage.setViewportSize({width,height:900});
+  await chartPage.goto('http://127.0.0.1:5197/#/admin/dashboard');
+  await chartPage.getByRole('figure',{name:'Stock health distribution',exact:true}).waitFor();
+  assert.equal(await chartPage.locator('.chart-legend li').count(),3);
+  assert.deepEqual(await chartPage.locator('.chart-legend strong').allTextContents(),['133%','133%','133%']);
+  assert.equal(await chartPage.locator('.chart-meter, progress').count(),0);
+  assert.ok(await chartPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Doughnut and labels fit the viewport');
+ }
+ await chartPage.close();
+ const shelfDay=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila'}).format(new Date());
+ const shelfPage=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user}:{...inventory,batches:[{id:1,productId:1,number:'SAME-DAY',quantity:2,receivedAt:shelfDay,expiresAt:shelfDay,location:'Rack A'}]}));
+ await shelfPage.goto('http://127.0.0.1:5197/#/batches');
+ await shelfPage.getByRole('meter',{name:'SAME-DAY shelf life elapsed',exact:true}).waitFor();
+ assert.equal(await shelfPage.getByRole('meter',{name:'SAME-DAY shelf life elapsed',exact:true}).getAttribute('aria-valuenow'),'100');
+ for(const width of [320,390]){
+  await shelfPage.setViewportSize({width,height:844});
+  const filterBounds=await shelfPage.getByRole('combobox',{name:'Filter batch status',exact:true}).boundingBox();
+  const searchBounds=await shelfPage.locator('.filter-bar .search-field').boundingBox();
+  assert.ok(filterBounds.y>=searchBounds.y+searchBounds.height,'Mobile filter belongs on its own readable row');
+  assert.ok(filterBounds.width>=200,'Mobile filter must show its selected status');
+ }
+ await shelfPage.close();
+ const emptyChart=await makePage(({path,json})=>json(200,path.endsWith('/auth/me')?{user}:{...inventory,products:[]}));
+ await emptyChart.goto('http://127.0.0.1:5197/#/admin/dashboard');await emptyChart.getByText('No products yet. Add a product to see stock health.',{exact:true}).waitFor();await emptyChart.close();
+ console.log('Responsive doughnut totals, readable category legend and empty-chart state passed.');
  assert.deepEqual(errors,[]);console.log('Reviewer matrix, self-review prevention, empty Cycle Count, and login field errors passed. No browser exceptions.');
 }catch(e){console.error(e);process.exitCode=1;}finally{if(browser)await Promise.race([browser.close(),new Promise(r=>setTimeout(r,1000))]);await server.close();process.exit(process.exitCode||0);}
