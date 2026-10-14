@@ -35,6 +35,12 @@
 .login-card > .public-back { display: inline-block; margin-top: 1rem; }
 .login-card form small { color: var(--muted); font-weight: 400; }
 .login-card .compact-form label { color: var(--muted); }
+.login-password-field { display: grid; gap: .38rem; min-width: 0; }
+.login-password-control { position: relative; min-width: 0; }
+.login-card .login-password-control input { padding-inline-end: 3.5rem; min-height: 48px; }
+.password-visibility { position: absolute; inset-block: 2px; inset-inline-end: 2px; display: grid; place-items: center; width: 44px; padding: .65rem; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.password-visibility:hover:not(:disabled) { color: var(--text); background: var(--surface-raised); }
+.password-visibility svg { width: 22px; height: 22px; }
 @media (max-width: 900px) {
   .public-hero { grid-template-columns: 1fr; gap: 2.5rem; padding-block: 3rem; }
   .public-features { grid-template-columns: 1fr; }

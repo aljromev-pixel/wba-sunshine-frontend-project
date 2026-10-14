@@ -46,15 +46,33 @@ try{
  let passwordCalls=0,inventoryCalls=0,releasePassword,passwordMode='validation',setupComplete=false,setupInventoryFail=true;
  const employee={...user,department:'Sales',roleLevel:'Staff',mustChangePassword:true,isActive:true};
  for(const portal of ['admin','staff']){
+  let loginCalls=0;
   const actor=portal==='admin'?user:{...user,id:2,department:'Warehouse',roleLevel:'Staff'};
   const wrong=portal==='admin'?'staff':'admin';
   const portalPage=await makePage(({path,json})=>{
-   if(path.endsWith('/login'))return path===(portal==='admin'?'/api/v1/auth/admin/login':'/api/v1/auth/login')?json(200,{token:'portal-test-token',user:actor}):json(403,{message:`This account must use ${portal==='admin'?'Admin':'Staff'} sign in.`,code:'LOGIN_PORTAL_MISMATCH'});
+   if(path.endsWith('/login')){loginCalls++;return path===(portal==='admin'?'/api/v1/auth/admin/login':'/api/v1/auth/login')?json(200,{token:'portal-test-token',user:actor}):json(403,{message:`This account must use ${portal==='admin'?'Admin':'Staff'} sign in.`,code:'LOGIN_PORTAL_MISMATCH'});}
    if(path.endsWith('/auth/me'))return json(200,{user:actor});
    return json(200,inventory);
   },false);
   await portalPage.setViewportSize({width:390,height:740});
   await portalPage.goto(`http://127.0.0.1:5197/#/${wrong==='admin'?'admin/':''}sign-in`);
+  const loginPassword=portalPage.getByLabel('Password',{exact:true});
+  await loginPassword.fill('visibility-test-password');
+  for(const width of [320,1440]){
+   await portalPage.setViewportSize({width,height:844});
+   assert.equal(await loginPassword.getAttribute('type'),'password');
+   const reveal=portalPage.getByRole('button',{name:'Show password',exact:true});
+   const bounds=await reveal.boundingBox();assert.ok(bounds.width>=44&&bounds.height>=44,'Password toggle has a mobile touch target');
+   await reveal.focus();await portalPage.keyboard.press('Enter');
+   assert.equal(await loginPassword.getAttribute('type'),'text');
+   assert.equal(await loginPassword.inputValue(),'visibility-test-password');
+   const conceal=portalPage.getByRole('button',{name:'Hide password',exact:true});
+   await conceal.focus();await portalPage.keyboard.press('Enter');
+   assert.equal(await loginPassword.getAttribute('type'),'password');
+   assert.equal(await portalPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true);
+  }
+  assert.equal(loginCalls,0,'Revealing a password never submits the login form');
+  await portalPage.setViewportSize({width:390,height:740});
   await portalPage.locator('input[name="email"]').fill(actor.email);await portalPage.locator('input[name="password"]').fill('portal-test-password');await portalPage.getByRole('button',{name:'Sign in',exact:true}).click();
   await portalPage.getByText(`This account must use ${portal==='admin'?'Admin':'Staff'} sign in.`,{exact:true}).waitFor();
   assert.equal(await portalPage.evaluate(()=>sessionStorage.getItem('wba-auth-token')),null);
