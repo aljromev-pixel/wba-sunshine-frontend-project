@@ -1,6 +1,7 @@
 export const PERMISSIONS = {
   INVENTORY_VIEW: 'inventory.view',
   INVENTORY_EDIT: 'inventory.edit',
+  INVENTORY_DELETE: 'inventory.delete',
   STOCK_IN: 'stock.in',
   STOCK_OUT: 'stock.out',
   TRANSFER_CREATE: 'transfer.create',
@@ -41,12 +42,14 @@ export const permissionMatrix = {
   'Warehouse:Supervisor': [
     ...warehouseStaff,
     PERMISSIONS.INVENTORY_EDIT,
+    PERMISSIONS.INVENTORY_DELETE,
     PERMISSIONS.ADJUSTMENT_APPROVE,
     PERMISSIONS.AUDIT_VIEW,
   ],
   'Warehouse:Manager': [
     ...warehouseStaff,
     PERMISSIONS.INVENTORY_EDIT,
+    PERMISSIONS.INVENTORY_DELETE,
     PERMISSIONS.ADJUSTMENT_APPROVE,
     PERMISSIONS.AUDIT_VIEW,
   ],
@@ -55,6 +58,7 @@ export const permissionMatrix = {
   'Purchasing:Staff': purchasingStaff,
   'Purchasing:Manager': [
     ...purchasingStaff,
+    PERMISSIONS.INVENTORY_EDIT,
     PERMISSIONS.ADJUSTMENT_APPROVE,
     PERMISSIONS.REPORTS_VIEW,
     PERMISSIONS.AUDIT_VIEW,

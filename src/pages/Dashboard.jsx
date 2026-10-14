@@ -1,9 +1,11 @@
 import { useApp } from '../context/AppContext'
 import { getBatchStatus, getStockStatus, usableStock, movementChange } from '../utils/inventoryLogic'
 import { formatDate, StatusBadge } from '../components/Shared'
+import { StockHealthChart } from '../components/InventoryCharts'
+import { PERMISSIONS } from '../utils/permissions'
 
 export function Dashboard() {
-  const { user, data } = useApp()
+  const { user, data, can } = useApp()
   const low = data.products.filter((item) => getStockStatus(item) === 'Low stock')
   const expiring = data.batches.filter((batch) => ['Expired', 'Expiring soon'].includes(getBatchStatus(batch)))
   const health = data.products.filter((item) => ['Low stock', 'Near capacity'].includes(getStockStatus(item)))
@@ -68,10 +70,7 @@ export function Dashboard() {
           <span>Filters requiring FIFO review</span>
         </article>
       </div>
-      <section className="surface"><h2>Stock health distribution</h2><div className="stock-chart">{['In stock', 'Low stock', 'Near capacity'].map(status => {
-        const count = data.products.filter(product => getStockStatus(product) === status).length
-        return <div key={status}><span>{status}</span><div className={`chart-meter ${status.toLowerCase().replaceAll(' ', '-')}`} role="meter" aria-label={`${status} products`} aria-valuemin={0} aria-valuemax={Math.max(1, data.products.length)} aria-valuenow={count} aria-valuetext={`${count} of ${data.products.length} products`}><span style={{ width: `${count / Math.max(1, data.products.length) * 100}%` }} /></div><strong>{count}</strong></div>
-      })}</div><p className="muted">Low-stock status uses usable quantities. Capacity uses total physical stock.</p></section>
+      <section className="surface"><h2>Stock health distribution</h2><StockHealthChart products={data.products} /><p className="muted">Low-stock status uses usable quantities. Capacity uses total physical stock.</p></section>
       <div className="two-column">
         <section className="surface">
           <div className="section-heading">
@@ -79,7 +78,7 @@ export function Dashboard() {
               <p className="eyebrow">ACTIVITY</p>
               <h2>Recent movements</h2>
             </div>
-            <a href="#/audit-trail">View audit trail</a>
+            {can(PERMISSIONS.AUDIT_VIEW) && <a href="#/audit-trail">View audit trail</a>}
           </div>
           <div className="activity-list">
             {data.transactions.slice(0, 4).map((item) => (

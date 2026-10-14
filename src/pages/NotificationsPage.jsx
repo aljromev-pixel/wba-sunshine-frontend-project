@@ -5,7 +5,7 @@ import { AsyncButton, EmptyState, FormError, LoadingState, StatusBadge, formatDa
 import { useApp } from '../context/AppContext'
 
 export function NotificationsPage() {
-  const { data } = useApp()
+  const { data, notify } = useApp()
   const [rows, setRows] = useState([])
   const [unread, setUnread] = useState(data.notificationSummary?.unreadCount || 0)
   const [page, setPage] = useState(1)
@@ -34,6 +34,7 @@ export function NotificationsPage() {
       const response = id ? await workspaceService.readNotification(id) : await workspaceService.readAllNotifications()
       setUnread(response.unreadCount)
       setRows(current => current.map(record => !id || record.id === id ? { ...record, readAt: new Date().toISOString() } : record))
+      notify(id ? 'Notification marked as read.' : 'All notifications marked as read.')
     } catch (exception) { setError(apiErrorMessage(exception)) }
     finally { setBusy(false) }
   }

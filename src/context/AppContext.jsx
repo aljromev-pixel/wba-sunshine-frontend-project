@@ -63,6 +63,7 @@ export function AppProvider({ children }) {
       sessionVersion.current += 1
       sessionStorage.removeItem(tokenKey)
       setUser(null)
+      setNotice(null)
       setAuthLoading(false)
       setInventoryLoading(false)
       setAuthError('Your session has expired. Please sign in again.')
@@ -97,7 +98,7 @@ export function AppProvider({ children }) {
   }, [loadInventory, restoreAttempt])
   useEffect(() => {
     if (!notice) return
-    const timer = setTimeout(() => setNotice(null), 4500)
+    const timer = setTimeout(() => setNotice(null), 8000)
     return () => clearTimeout(timer)
   }, [notice])
 
@@ -109,6 +110,7 @@ export function AppProvider({ children }) {
       throw new ApiError('This account must use the other sign-in portal.', { status: 403 })
     }
     setAuthError('')
+    setNotice(null)
     sessionStorage.setItem(tokenKey, token)
     sessionStorage.setItem('wba-auth-portal', accountPortal(authenticatedUser))
     setUser({ ...authenticatedUser, initials: initials(authenticatedUser.name) })
@@ -136,7 +138,8 @@ export function AppProvider({ children }) {
       data,
       alerts: inventoryService.alerts(),
       can: (permission) => can(user, permission),
-      notify: (message, tone = 'success') => setNotice({ message, tone }),
+      notify: (message, tone = 'success') => setNotice({ message, tone, id: crypto.randomUUID() }),
+      dismissNotice: () => setNotice(null),
       notice,
       login: (credentials) => authenticate('login', credentials),
       changePassword: (details) => authenticate('changePassword', details),
@@ -145,6 +148,7 @@ export function AppProvider({ children }) {
         sessionVersion.current += 1
         sessionStorage.removeItem(tokenKey)
         setUser(null)
+        setNotice(null)
         setAuthError('')
         setAuthLoading(false)
         setInventoryLoading(false)

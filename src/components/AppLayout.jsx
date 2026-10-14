@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../context/AppContext'
+import { TransactionNotice } from './TransactionNotice'
 import { PERMISSIONS } from '../utils/permissions'
 import { ThemeToggle } from './ThemeToggle'
 import { BrandLogo } from './BrandLogo'
@@ -20,7 +21,7 @@ const nav = [
   { href: '/reports', label: 'Reports', icon: '▧', permission: PERMISSIONS.REPORTS_VIEW },
   { href: '/audit-trail', label: 'Audit Trail', icon: '◷', permission: PERMISSIONS.AUDIT_VIEW },
   { href: '/users', label: 'User Management', icon: '♙', permission: PERMISSIONS.USERS_MANAGE },
-  { href: '/trash', label: 'Trash bin', icon: '▱', permission: [PERMISSIONS.INVENTORY_EDIT, PERMISSIONS.USERS_MANAGE] },
+  { href: '/trash', label: 'Trash bin', icon: '▱', permission: [PERMISSIONS.INVENTORY_DELETE, PERMISSIONS.USERS_MANAGE] },
 ]
 const navGroups = [
   { id: 'inventory', label: 'Inventory', icon: '▤', paths: ['/inventory', '/batches'] },
@@ -34,7 +35,7 @@ const title = (path) =>
   nav.find((item) => item.href === path)?.label || ({ '/settings': 'Settings', '/help': 'Help Center' }[path]) || (path.startsWith('/inventory/') ? 'Product Details' : 'WBA')
 
 export function AppLayout({ path, children }) {
-  const { user, can, logout, notice, data, retryInventory, inventoryLoading, backgroundError } = useApp()
+  const { user, can, logout, notice, dismissNotice, data, retryInventory, inventoryLoading, backgroundError } = useApp()
   const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 900px)').matches)
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -136,7 +137,7 @@ export function AppLayout({ path, children }) {
           <div className="form-actions inventory-refresh"><small>Inventory updated: {new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZone: data.warehouseTimezone || 'Asia/Manila' }).format(new Date(data.loadedAt))} · {data.warehouseTimezone || 'Asia/Manila'}</small><button type="button" className="inline-button" disabled={inventoryLoading} onClick={retryInventory}>Refresh inventory</button></div>
           <p className="refresh-status" role="status">{backgroundError || 'Live updates pause while editing.'}</p>
         </>}
-        {notice && <div className={`toast ${notice.tone}`}>{notice.message}</div>}
+        <TransactionNotice notice={notice} onDismiss={dismissNotice} />
         {children}
         </div>
       </main>

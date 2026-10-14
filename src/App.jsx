@@ -30,7 +30,7 @@ const permissions = {
   '/reports': PERMISSIONS.REPORTS_VIEW,
   '/audit-trail': PERMISSIONS.AUDIT_VIEW,
   '/users': PERMISSIONS.USERS_MANAGE,
-  '/trash': [PERMISSIONS.INVENTORY_EDIT, PERMISSIONS.USERS_MANAGE],
+  '/trash': [PERMISSIONS.INVENTORY_DELETE, PERMISSIONS.USERS_MANAGE],
 }
 function NotFound() {
   return (

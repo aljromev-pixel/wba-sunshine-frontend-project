@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { FormField, useFormFeedback, AsyncButton, ConfirmDialog, EmptyState, FormError, StatusBadge, formatDate } from '../components/Shared'
 import { useApp } from '../context/AppContext'
 import { inventoryService } from '../services/inventoryService'
@@ -6,10 +6,13 @@ import { daysUntil, fifoBatch, getBatchStatus, getStockStatus, today, usableStoc
 import { PERMISSIONS } from '../utils/permissions'
 import { apiErrorMessage } from '../utils/apiErrors'
 import { ProductPlanningFields } from '../components/ProductPlanningFields'
+import { ShelfLifeRing } from '../components/InventoryCharts'
 
 const emptyProduct = { sku: '', name: '', category: '', stock: 0, reorderPoint: 0, capacity: '', supplier: '', leadTime: 0, unit: 'units', monthlySales: 0, demandPattern: 'Stable-Demand', monthlySalesHistory: [], seasonalProfile: [] }
 
 function ProductForm({ initial, onClose, onSaved, notify, onBusyChange }) {
+  const formRef = useRef(null)
+  useEffect(() => { formRef.current?.querySelector('input:not([readonly])')?.focus() }, [])
   const [form, setForm] = useState(initial ? { ...emptyProduct, ...initial, capacity: initial.capacity ?? '', supplier: initial.supplier ?? '' } : emptyProduct)
   const feedback = useFormFeedback()
   const { error, setError, handleError } = feedback
@@ -36,7 +39,7 @@ function ProductForm({ initial, onClose, onSaved, notify, onBusyChange }) {
       onBusyChange(false)
     }
   }
-  return <form className="surface compact-form" onSubmit={submit}>
+  return <form ref={formRef} className="surface compact-form" onSubmit={submit}>
     <div className="section-heading"><div><p className="eyebrow">{initial ? 'EDIT' : 'CREATE'}</p><h2>{initial ? 'Edit product' : 'Add product'}</h2></div><button type="button" className="inline-button" onClick={onClose} disabled={submitting}>Cancel</button></div>
     <div className="form-grid">{[['sku', 'SKU'], ['name', 'Name'], ['category', 'Category'], ['supplier', 'Supplier'], ['unit', 'Unit'], ['stock', initial ? 'Current stock (read only)' : 'Starting stock', 'number'], ['reorderPoint', 'Reorder point', 'number'], ['capacity', 'Capacity', 'number'], ['leadTime', 'Lead time (days)', 'number'], ['monthlySales', 'Monthly sales', 'number']].map(([name, label, type = 'text']) => <FormField key={name} name={name} feedback={feedback}>{label}<input disabled={submitting} readOnly={Boolean(initial && name === 'stock')} name={name} type={type} min={type === 'number' ? '0' : undefined} value={form[name]} onChange={(event) => setForm((current) => ({ ...current, [name]: event.target.value }))} required={name !== 'capacity' && name !== 'supplier'} /></FormField>)}</div>
     <ProductPlanningFields form={form} setForm={setForm} feedback={feedback} disabled={submitting} />
@@ -55,6 +58,7 @@ export function InventoryList() {
   const [saving, setSaving] = useState(false)
   const [confirmation, setConfirmation] = useState(null)
   const manage = can(PERMISSIONS.INVENTORY_EDIT)
+  const canDelete = can(PERMISSIONS.INVENTORY_DELETE)
   const categories = useMemo(() => [
     'All categories',
     ...[...new Set(data.products.map(product => product.category))].sort((a, b) => a.localeCompare(b)),
@@ -159,7 +163,7 @@ export function InventoryList() {
                     <a className="row-link" href={`#/inventory/${item.id}`}>
                       Details →
                     </a>
-                    {manage && <><button className="inline-button" disabled={saving} onClick={() => { setEditing(item); setCreating(false) }}>Edit</button><button className="inline-button" disabled={saving} onClick={() => setConfirmation(item)}>Delete</button></>}
+                    {manage && <button className="inline-button" disabled={saving} onClick={() => { setEditing(item); setCreating(false) }}>Edit</button>}{canDelete && <button className="inline-button" disabled={saving} onClick={() => setConfirmation(item)}>Delete</button>}
                   </div></td>
                 </tr>
               ))}
@@ -175,7 +179,7 @@ export function InventoryList() {
   )
 }
 export function ProductDetails({ productId }) {
-  const { data } = useApp()
+  const { data, can } = useApp()
   const [activity, setActivity] = useState(null)
   const [activityError, setActivityError] = useState('')
   const [activityAttempt, setActivityAttempt] = useState(0)
@@ -243,9 +247,9 @@ export function ProductDetails({ productId }) {
               {fifo.expiresAt ? `Expires ${formatDate(fifo.expiresAt)}` : `Received ${formatDate(fifo.receivedAt)}`}
             </p>
           </div>
-          <a href="#/stock-out" className="button primary">
+          {can(PERMISSIONS.STOCK_OUT) && <a href="#/stock-out" className="button primary">
             Start stock out
-          </a>
+          </a>}
         </section>
       )}
       <div className="two-column">
@@ -314,6 +318,8 @@ export function ProductDetails({ productId }) {
   )
 }
 function BatchForm({ initial, products, onClose, onSaved, notify, onBusyChange }) {
+  const formRef = useRef(null)
+  useEffect(() => { formRef.current?.querySelector('input:not([readonly]), select')?.focus() }, [])
   const [form, setForm] = useState(initial || { productId: products[0]?.id || '', number: '', quantity: 0, receivedAt: today(), expiresAt: '', location: 'Main warehouse' })
   const feedback = useFormFeedback()
   const { error, setError, handleError } = feedback
@@ -325,7 +331,7 @@ function BatchForm({ initial, products, onClose, onSaved, notify, onBusyChange }
     setSubmitting(true)
     onBusyChange(true)
     try {
-      const payload = { ...form, productId: String(form.productId), quantity: Number(form.quantity), expiresAt: form.expiresAt || null }
+      const payload = { number: form.number, receivedAt: form.receivedAt, expiresAt: form.expiresAt || null, ...(!initial ? { productId: String(form.productId), quantity: Number(form.quantity), location: form.location } : {}) }
       if (initial) await inventoryService.updateBatch(initial.id, payload)
       else await inventoryService.createBatch(payload)
       notify(`Batch ${initial ? 'updated' : 'created'}.`)
@@ -337,11 +343,11 @@ function BatchForm({ initial, products, onClose, onSaved, notify, onBusyChange }
       onBusyChange(false)
     }
   }
-  return <form className="surface compact-form" onSubmit={submit}>
+  return <form ref={formRef} className="surface compact-form" onSubmit={submit}>
     <div className="section-heading"><div><p className="eyebrow">{initial ? 'EDIT' : 'CREATE'}</p><h2>{initial ? 'Edit batch' : 'Add batch'}</h2></div><button type="button" className="inline-button" onClick={onClose} disabled={submitting}>Cancel</button></div>
-    <div className="form-grid">{!initial && <FormField name="productId" feedback={feedback}>Product<select disabled={submitting} value={form.productId} onChange={(event) => setForm((current) => ({ ...current, productId: event.target.value }))}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></FormField>}<FormField name="number" feedback={feedback}>Batch number<input disabled={submitting} value={form.number} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} required /></FormField>{!initial && <FormField name="quantity" feedback={feedback}>Quantity<input disabled={submitting} type="number" min="0" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} required /></FormField>}<FormField name="receivedAt" feedback={feedback}>Received<input disabled={submitting} type="date" value={form.receivedAt} onChange={(event) => setForm((current) => ({ ...current, receivedAt: event.target.value }))} required /></FormField><FormField name="expiresAt" feedback={feedback}>Expiry<input disabled={submitting} type="date" value={form.expiresAt || ''} onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))} /></FormField></div>
+    <div className="form-grid">{!initial && <FormField name="productId" feedback={feedback}>Product<select aria-label="Product" disabled={submitting} value={form.productId} onChange={(event) => setForm((current) => ({ ...current, productId: event.target.value }))}>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></FormField>}<FormField name="number" feedback={feedback}>Batch number<input disabled={submitting} value={form.number} onChange={(event) => setForm((current) => ({ ...current, number: event.target.value }))} required /></FormField>{!initial && <FormField name="quantity" feedback={feedback}>Quantity<input disabled={submitting} type="number" min="0" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))} required /></FormField>}<FormField name="receivedAt" feedback={feedback}>Received<input disabled={submitting} type="date" value={form.receivedAt} onChange={(event) => setForm((current) => ({ ...current, receivedAt: event.target.value }))} required /></FormField><FormField name="expiresAt" feedback={feedback}>Expiry<input disabled={submitting} type="date" value={form.expiresAt || ''} onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))} /></FormField></div>
     <FormField name="location" feedback={feedback}>Storage location<input required disabled={submitting} readOnly={Boolean(initial)} value={form.location || 'Main warehouse'} maxLength={100} onChange={event => setForm(current => ({ ...current, location: event.target.value }))} /></FormField>
-    {initial && <p className="muted">Use Transfer to move quantities to another location.</p>}
+    {initial && <p className="muted">Editing {products.find(product => product.id === initial.productId)?.name} · {initial.quantity} units on hand. Save changes to the batch number, received date or expiry here. Use Stock In / Stock Out or an approved count to change quantities, and Transfer to change storage locations.</p>}
     <FormError>{error}</FormError><AsyncButton className="button primary" loading={submitting} loadingLabel="Saving…">{initial ? 'Save batch' : 'Create batch'}</AsyncButton>
   </form>
 }
@@ -354,11 +360,13 @@ export function Batches() {
   const [saving, setSaving] = useState(false)
   const [confirmation, setConfirmation] = useState(null)
   const manage = can(PERMISSIONS.INVENTORY_EDIT)
+  const canDelete = can(PERMISSIONS.INVENTORY_DELETE)
   const remove = async (batch) => {
     await inventoryService.deleteBatch(batch.id); notify('Batch deleted.')
   }
+  const productsById = useMemo(() => new Map(data.products.map(product => [product.id, product])), [data.products])
   const rows = data.batches.filter((batch) => {
-    const product = data.products.find((item) => item.id === batch.productId)
+    const product = productsById.get(batch.productId)
     return (
       (filter === 'All batches' || getBatchStatus(batch) === filter) &&
       `${batch.number} ${product?.name}`.toLowerCase().includes(search.toLowerCase())
@@ -372,9 +380,10 @@ export function Batches() {
           <h2>FIFO and expiry management</h2>
           <p>Use the oldest valid stock first. Expired batches are automatically excluded from FIFO recommendations.</p>
         </div>
-        {manage && <button className="button primary" disabled={saving} onClick={() => { setCreating(true); setEditing(null) }}>Add batch</button>}
+        {manage && <button className="button primary" disabled={saving || !data.products.length} onClick={() => { setCreating(true); setEditing(null) }}>Add batch</button>}
       </div>
       {(creating || editing) && <BatchForm key={editing?.id || 'new'} onBusyChange={setSaving} initial={editing} products={data.products} notify={notify} onClose={() => { setCreating(false); setEditing(null) }} onSaved={() => { setCreating(false); setEditing(null) }} />}
+      {manage && !data.products.length && <p className="muted">Create a product before adding its first batch. <a href="#/inventory">Open Products</a></p>}
       <section className="surface">
         <div className="filter-bar">
           <label className="search-field">
@@ -395,8 +404,9 @@ export function Batches() {
         </div>
         <div className="batch-timeline" aria-label="Batch expiry timeline">{rows.map(batch => {
           const lifetime = batch.expiresAt ? (Date.parse(batch.expiresAt) - Date.parse(batch.receivedAt)) / 86400000 : 0
-          const used = lifetime > 0 ? Math.max(0, Math.min(100, (1 - daysUntil(batch.expiresAt) / lifetime) * 100)) : 0
-          return <article key={batch.id}><strong>{batch.number}</strong><small>{data.products.find(product => product.id === batch.productId)?.name} · {batch.location || 'Main warehouse'}</small><StatusBadge>{getBatchStatus(batch)}</StatusBadge>{batch.expiresAt ? <><progress aria-label={`${batch.number} shelf life elapsed`} value={used} max="100" /><small>Received {formatDate(batch.receivedAt)} → expires {formatDate(batch.expiresAt)} · {daysUntil(batch.expiresAt)} days remaining</small></> : <small>Received {formatDate(batch.receivedAt)} · no expiry recorded</small>}</article>
+          const remaining = batch.expiresAt ? daysUntil(batch.expiresAt) : null
+          const used = lifetime > 0 ? Math.max(0, Math.min(100, (1 - remaining / lifetime) * 100)) : remaining !== null && remaining <= 0 ? 100 : 0
+          return <article key={batch.id}><strong>{batch.number}</strong><small>{productsById.get(batch.productId)?.name} · {batch.location || 'Main warehouse'}</small><StatusBadge>{getBatchStatus(batch)}</StatusBadge>{batch.expiresAt ? <><ShelfLifeRing number={batch.number} value={used} /><small>Received {formatDate(batch.receivedAt)} → expires {formatDate(batch.expiresAt)} · {remaining < 0 ? `${Math.abs(remaining)} days past expiry` : `${remaining} days remaining`}</small></> : <small>Received {formatDate(batch.receivedAt)} · no expiry recorded</small>}</article>
         })}</div>
         <div className="table-wrap" tabIndex={0} role="region" aria-label="Batch inventory table">
           <table>
@@ -413,7 +423,7 @@ export function Batches() {
             </thead>
             <tbody>
               {rows.map((batch) => {
-                const product = data.products.find((item) => item.id === batch.productId)
+                const product = productsById.get(batch.productId)
                 return (
                   <tr key={batch.id}>
                     <td>
@@ -441,7 +451,7 @@ export function Batches() {
                     <td>
                       <StatusBadge>{getBatchStatus(batch)}</StatusBadge>
                     </td>
-                    {manage && <td><div className="table-actions"><button className="inline-button" disabled={saving} onClick={() => { setEditing(batch); setCreating(false) }}>Edit</button><button className="inline-button" disabled={saving} onClick={() => setConfirmation(batch)}>Delete</button></div></td>}
+                    {manage && <td><div className="table-actions"><button className="inline-button" disabled={saving} onClick={() => { setEditing(batch); setCreating(false) }}>Edit</button>{canDelete && <button className="inline-button" disabled={saving} onClick={() => setConfirmation(batch)}>Delete</button>}</div></td>}
                   </tr>
                 )
               })}

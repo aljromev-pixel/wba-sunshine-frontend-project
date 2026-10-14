@@ -207,10 +207,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--focus); box-shad
 .activity-list b { white-space: nowrap; flex-shrink: 0; }
 .activity-list b[data-direction='decrease'] { color: var(--danger-text); }
 .activity-list b[data-direction='neutral'] { color: var(--muted); }
-.chart-meter { height: .8rem; border-radius: 1rem; overflow: hidden; background: var(--surface-raised); border: 1px solid var(--border); }
-.chart-meter > span { display: block; height: 100%; background: var(--success-text); }
-.chart-meter.low-stock > span { background: var(--danger-text); }
-.chart-meter.near-capacity > span { background: var(--accent); }
 .confirm-overlay { z-index: 60; padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom)); }
 .confirm-dialog { max-width: 100%; overscroll-behavior: contain; }
 .confirm-dialog h2, .confirm-dialog p { overflow-wrap: anywhere; }
@@ -224,6 +220,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, .table-wrap:f
   .topbar-actions { justify-content: flex-end; width: 100%; }
 }
 @media (max-width: 700px) {
+  .filter-bar { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .filter-bar > * { width: 100%; min-width: 0; max-width: 100%; }
   .toolbar-actions { width: 100%; }
   .toolbar-actions > * { flex: 1; }
   .inventory-refresh { align-items: flex-start; flex-direction: column; }
@@ -235,7 +233,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, .table-wrap:f
   .review-actions button { flex: 1; padding: .65rem .85rem; }
   .section-heading { flex-wrap: wrap; align-items: start; }
   .section-heading a { min-height: 32px; display: inline-flex; align-items: center; }
-  .stock-chart > div { font-size: .875rem; }
 }
 @media (max-width: 520px) {
   .topbar-actions { gap: .4rem; }
